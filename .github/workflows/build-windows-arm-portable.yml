@@ -12,7 +12,7 @@ jobs:
       CXX: clang-cl.exe
       VULKAN_SDK: C:\VulkanSDK\
       triplet: arm64-windows
-      vcpkg_baseline: 42bb0d9e8d4cf33485afb9ee2229150f79f61a1f
+      vcpkg_baseline: c16c1bd46c7f6de21efc6dcf19c1069d6825df23
       VCPKG_INSTALLED_DIR: ./vcpkg_installed/
       dep_folder: deps
       libplacebo_tag: v7.360.1
