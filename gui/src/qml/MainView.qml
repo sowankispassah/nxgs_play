@@ -260,8 +260,11 @@ Pane {
                     Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
                     text: {
                         let t = "";
-                        if (modelData.name)
-                            t += modelData.name + "\n";
+                        let displayName = modelData.displayName ? modelData.displayName : modelData.name;
+                        if (displayName)
+                            t += displayName + "\n";
+                        if (modelData.name && displayName && modelData.name !== displayName)
+                            t += qsTr("Console: %1").arg(modelData.name) + "\n";
                         if (modelData.address)
                             t += qsTr("Address: %1").arg(Chiaki.settings.streamerMode ? "hidden" : modelData.address);
                         if (modelData.mac)

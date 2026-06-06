@@ -105,9 +105,10 @@ ManualHost::ManualHost()
 	registered = false;
 }
 
-ManualHost::ManualHost(int id, const QString &host, bool registered, const HostMAC &registered_mac)
+ManualHost::ManualHost(int id, const QString &host, const QString &display_name, bool registered, const HostMAC &registered_mac)
 	: id(id),
 	host(host),
+	display_name(display_name),
 	registered(registered),
 	registered_mac(registered_mac)
 {
@@ -116,6 +117,7 @@ ManualHost::ManualHost(int id, const QString &host, bool registered, const HostM
 ManualHost::ManualHost(int id, const ManualHost &o)
 	: id(id),
 	host(o.host),
+	display_name(o.display_name),
 	registered(o.registered),
 	registered_mac(o.registered_mac)
 {
@@ -126,11 +128,17 @@ void ManualHost::SetHost(const QString &hostadd)
 	host = hostadd;
 }
 
+void ManualHost::SetDisplayName(const QString &name)
+{
+	display_name = name;
+}
+
 
 void ManualHost::SaveToSettings(QSettings *settings) const
 {
 	settings->setValue("id", id);
 	settings->setValue("host", host);
+	settings->setValue("display_name", display_name);
 	settings->setValue("registered", registered);
 	settings->setValue("registered_mac", QByteArray((const char *)registered_mac.GetMAC(), 6));
 }
@@ -140,6 +148,7 @@ ManualHost ManualHost::LoadFromSettings(QSettings *settings)
 	ManualHost r;
 	r.id = settings->value("id", -1).toInt();
 	r.host = settings->value("host").toString();
+	r.display_name = settings->value("display_name").toString();
 	r.registered = settings->value("registered").toBool();
 	auto registered_mac = settings->value("registered_mac").toByteArray();
 	if(registered_mac.size() == 6)

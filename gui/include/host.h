@@ -90,17 +90,20 @@ class ManualHost
 	private:
 		int id;
 		QString host;
+		QString display_name;
 		bool registered;
 		HostMAC registered_mac;
 
 	public:
 		ManualHost();
-		ManualHost(int id, const QString &host, bool registered, const HostMAC &registered_mac);
+		ManualHost(int id, const QString &host, const QString &display_name, bool registered, const HostMAC &registered_mac);
 		ManualHost(int id, const ManualHost &o);
 		void SetHost(const QString &hostadd);
+		void SetDisplayName(const QString &name);
 
 		int GetID() const 			{ return id; }
 		QString GetHost() const 	{ return host; }
+		QString GetDisplayName() const	{ return display_name; }
 		bool GetRegistered() const	{ return registered; }
 		HostMAC GetMAC() const 		{ return registered_mac; }
 
@@ -109,7 +112,7 @@ class ManualHost
 		void SaveToSettings(QSettings *settings) const;
 		static ManualHost LoadFromSettings(QSettings *settings);
 };
-static bool operator==(const ManualHost &a, const ManualHost &b)	{ return (a.GetID() == b.GetID() && a.GetHost() == b.GetHost() && a.GetRegistered() == b.GetRegistered() && a.GetMAC() == b.GetMAC()); }
+static bool operator==(const ManualHost &a, const ManualHost &b)	{ return (a.GetID() == b.GetID() && a.GetHost() == b.GetHost() && a.GetDisplayName() == b.GetDisplayName() && a.GetRegistered() == b.GetRegistered() && a.GetMAC() == b.GetMAC()); }
 class PsnHost
 {
 	private:

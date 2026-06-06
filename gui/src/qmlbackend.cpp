@@ -771,8 +771,21 @@ QVariantList QmlBackend::hosts() const
             }
         }
         m["manual"] = manual;
-        m["name"] = host.host_name;
+        QString manual_display_name;
         QString duid = "";
+        if(manual)
+        {
+            for(const auto &manual_host : std::as_const(discovered_manual_hosts))
+            {
+                if(manual_host.GetRegistered() && manual_host.GetMAC() == host_mac && manual_host.GetHost() == host.host_addr)
+                {
+                    manual_display_name = manual_host.GetDisplayName();
+                    break;
+                }
+            }
+        }
+        m["name"] = host.host_name;
+        m["displayName"] = manual_display_name.isEmpty() ? host.host_name : manual_display_name;
         if(!registered)
         {
             if(psn_nickname_hosts.contains(host.host_name))
@@ -798,7 +811,9 @@ QVariantList QmlBackend::hosts() const
         QVariantMap m;
         m["discovered"] = false;
         m["manual"] = true;
-        m["name"] = host.GetHost();
+        QString display_name = host.GetDisplayName().isEmpty() ? host.GetHost() : host.GetDisplayName();
+        m["name"] = display_name;
+        m["displayName"] = display_name;
         m["duid"] = "";
         m["address"] = host.GetHost();
         m["state"] = "unknown";
@@ -808,6 +823,7 @@ QVariantList QmlBackend::hosts() const
             auto registered = settings->GetRegisteredHost(host.GetMAC());
             m["registered"] = true;
             m["name"] = registered.GetServerNickname();
+            m["displayName"] = host.GetDisplayName().isEmpty() ? registered.GetServerNickname() : host.GetDisplayName();
             m["ps5"] = chiaki_target_is_ps5(registered.GetTarget());
             m["mac"] = registered.GetServerMAC().ToString();
         }
@@ -835,6 +851,7 @@ QVariantList QmlBackend::hosts() const
         m["manual"] = false;
         m["display"] = true;
         m["name"] = host.GetName();
+        m["displayName"] = host.GetName();
         m["duid"] = host.GetDuid();
         m["address"] = "";
         m["registered"] = true;
@@ -1305,14 +1322,14 @@ void QmlBackend::setConsolePin(int index, QString console_pin)
     settings->AddRegisteredHost(server.registered_host);
 }
 
-void QmlBackend::addManualHost(int index, const QString &address)
+void QmlBackend::addManualHost(int index, const QString &address, const QString &display_name)
 {
     HostMAC hmac;
     QList<RegisteredHost> registered_hosts = settings->GetRegisteredHosts();
     bool registered = (index >= 0 && (index < registered_hosts.length()));
     if (registered)
         hmac = registered_hosts.at(index).GetServerMAC();
-    ManualHost host(-1, address, registered, hmac);
+    ManualHost host(-1, address, display_name, registered, hmac);
     settings->SetManualHost(host);
 }
 
