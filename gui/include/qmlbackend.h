@@ -108,6 +108,7 @@ public:
         DataConnectionFinished,
         ConnectFailed,
         ConnectFailedStart,
+        ConnectFailedPsnDeviceUnavailable,
         ConnectFailedConsoleUnreachable,
     };
     Q_ENUM(PsnConnectState);

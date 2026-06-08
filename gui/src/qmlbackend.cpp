@@ -1071,6 +1071,18 @@ void QmlBackend::checkPsnConnection(const ChiakiErrorCode &err)
                 setDiscoveryEnabled(true);
             }
             break;
+        case CHIAKI_ERR_HTTP_NONOK:
+            setConnectState(PsnConnectState::ConnectFailedPsnDeviceUnavailable);
+            if(session)
+            {
+                chiaki_log_mutex.lock();
+                chiaki_log_ctx = nullptr;
+                chiaki_log_mutex.unlock();
+                session->deleteLater();
+                session = nullptr;
+                setDiscoveryEnabled(true);
+            }
+            break;
         default:
             setConnectState(PsnConnectState::ConnectFailed);
             if(session)
