@@ -1714,10 +1714,46 @@ void QmlBackend::setWebEngineHints(QQuickWebEngineProfile *profile)
 }
 #endif
 
-void QmlBackend::connectToHost(int index, QString nickname)
+void QmlBackend::connectToHost(int index, QString nickname, QString duid, QString address, QString mac)
 {
+    Q_UNUSED(address);
+    Q_UNUSED(mac);
     window->setWindowAdjustable(false);
     auto server = displayServerAt(index);
+    const QString requested_duid = duid.trimmed();
+    if(!requested_duid.isEmpty())
+    {
+        DisplayServer duid_server;
+        if(psn_hosts.contains(requested_duid))
+        {
+            duid_server.valid = true;
+            duid_server.discovered = false;
+            duid_server.psn_host = psn_hosts.value(requested_duid);
+            duid_server.duid = requested_duid;
+            duid_server.registered = true;
+            RegisteredHost registered_host;
+            if(findRegisteredHostForPsnHost(duid_server.psn_host, &registered_host))
+                duid_server.registered_host = registered_host;
+        }
+        if(!duid_server.valid)
+        {
+            for(const auto &registered_host : settings->GetRegisteredHosts())
+            {
+                if(registered_host.GetPsnDuid().trimmed().compare(requested_duid, Qt::CaseInsensitive) == 0)
+                {
+                    duid_server.valid = true;
+                    duid_server.discovered = false;
+                    duid_server.registered = true;
+                    duid_server.registered_host = registered_host;
+                    duid_server.duid = registered_host.GetPsnDuid();
+                    duid_server.psn_host = PsnHost(duid_server.duid, registered_host.GetServerNickname(), chiaki_target_is_ps5(registered_host.GetTarget()));
+                    break;
+                }
+            }
+        }
+        if(duid_server.valid)
+            server = duid_server;
+    }
     if (!server.valid)
         return;
 

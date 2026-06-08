@@ -215,9 +215,9 @@ Pane {
 
             function connectToHost() {
                 if(modelData.discovered)
-                    Chiaki.connectToHost(index, modelData.name);
+                    Chiaki.connectToHost(index, modelData.name, modelData.duid || "", modelData.address || "", modelData.mac || "");
                 else
-                    Chiaki.connectToHost(index);
+                    Chiaki.connectToHost(index, modelData.name || "", modelData.duid || "", modelData.address || "", modelData.mac || "");
             }
 
             function wakeUpHost() {

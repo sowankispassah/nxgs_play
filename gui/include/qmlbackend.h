@@ -187,7 +187,7 @@ public:
     Q_INVOKABLE void hideHost(const QString &mac_string, const QString &host_nickname);
     Q_INVOKABLE void unhideHost(const QString &mac_string);
     Q_INVOKABLE bool registerHost(const QString &host, const QString &display_name, const QString &psn_id, const QString &pin, const QString &cpin, bool broadcast, int target, const QJSValue &callback);
-    Q_INVOKABLE void connectToHost(int index, QString nickname = QString());
+    Q_INVOKABLE void connectToHost(int index, QString nickname = QString(), QString duid = QString(), QString address = QString(), QString mac = QString());
     Q_INVOKABLE void stopSession(bool sleep);
     Q_INVOKABLE void sessionGoHome();
     Q_INVOKABLE void enterPin(const QString &pin);
