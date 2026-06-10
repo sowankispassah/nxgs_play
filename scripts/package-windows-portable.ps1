@@ -102,7 +102,7 @@ $versionCode = "$version+local.$shortCommit"
 NXGS Gaming source code availability
 
 The complete corresponding source code for NXGS Gaming is available at:
-https://github.com/sowankispassah/nxgs_gaming
+https://github.com/sowankispassah/nxgs_play
 
 NXGS Gaming is a fork of chiaki-ng, which is based on Chiaki. This fork is
 distributed under the GNU Affero General Public License v3.0.

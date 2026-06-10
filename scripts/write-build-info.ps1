@@ -11,7 +11,7 @@ param(
     [string]$Commit = "",
     [string]$Branch = "",
     [string]$RunUrl = "",
-    [string]$SourceUrl = "https://github.com/sowankispassah/nxgs_gaming",
+    [string]$SourceUrl = "https://github.com/sowankispassah/nxgs_play",
     [string]$BuiltAtUtc = ""
 )
 

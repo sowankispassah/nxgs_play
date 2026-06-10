@@ -3111,7 +3111,7 @@ DialogView {
                     Layout.preferredWidth: 400
                     verticalAlignment: Text.AlignTop
                     wrapMode: Text.Wrap
-                    text: "<h1>NXGS Gaming</h1> by NXGS Studio, version %1\n                        <h2>Fork Attribution</h2>\n                        <p>NXGS Gaming is a fork of chiaki-ng, which is based on Chiaki. This fork is distributed under the GNU Affero General Public License v3.0.</p>\n                        <p>Source code: https://github.com/soowankispassah/nxgs_gaming</p>\n                        <p>NXGS Gaming is not affiliated with, endorsed by, sponsored by, or certified by Sony Interactive Entertainment LLC, PlayStation, chiaki-ng, Chiaki, or the original maintainers.</p>
+                    text: "<h1>NXGS Gaming</h1> by NXGS Studio, version %1\n                        <h2>Fork Attribution</h2>\n                        <p>NXGS Gaming is a fork of chiaki-ng, which is based on Chiaki. This fork is distributed under the GNU Affero General Public License v3.0.</p>\n                        <p>Source code: https://github.com/sowankispassah/nxgs_play</p>\n                        <p>NXGS Gaming is not affiliated with, endorsed by, sponsored by, or certified by Sony Interactive Entertainment LLC, PlayStation, chiaki-ng, Chiaki, or the original maintainers.</p>
 
                         <p>This program is free software: you can redistribute it and/or modify
                         it under the terms of the GNU Affero General Public License version 3

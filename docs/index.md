@@ -10,7 +10,7 @@ The original chiaki-ng and Chiaki credits, contributor attributions, copyright n
 
 ## Source Code Availability
 
-The complete corresponding source code for NXGS Gaming is available at: https://github.com/soowankispassah/nxgs_gaming
+The complete corresponding source code for NXGS Gaming is available at: https://github.com/sowankispassah/nxgs_play
 
 ## Disclaimer
 

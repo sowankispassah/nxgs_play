@@ -3,7 +3,7 @@
 
 #define MyAppName "NXGS Gaming"
 #define MyAppPublisher "NXGS Studio"
-#define MyAppURL "https://github.com/soowankispassah/nxgs_gaming"
+#define MyAppURL "https://github.com/sowankispassah/nxgs_play"
 #define MyAppExeName "NXGS Gaming.exe"
 #define MyAppPath "..\NXGS-Gaming-Win"
 #define MyAppVersion() \

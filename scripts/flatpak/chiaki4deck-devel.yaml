@@ -474,7 +474,7 @@ modules:
     builddir: true
     sources:
       - type: git
-        url: https://github.com/soowankispassah/nxgs_gaming.git
+        url: https://github.com/sowankispassah/nxgs_play.git
         branch: main
     post-install:
       - "install -Dm755 ../scripts/psn-account-id.py /app/bin/psn-account-id"

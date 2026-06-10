@@ -1,9 +1,9 @@
 
 ![NXGS Gaming Logo](gui/res/nxgs-gaming-logo.png)
 
-# [NXGS Gaming](https://github.com/soowankispassah/nxgs_gaming)
+# [NXGS Gaming](https://github.com/sowankispassah/nxgs_play)
 
-NXGS Gaming is an open source remote play client fork maintained by NXGS Studio. It is based on chiaki-ng, which is based on the original Chiaki project. Source code and project documentation are currently available at <https://github.com/soowankispassah/nxgs_gaming>.
+NXGS Gaming is an open source remote play client fork maintained by NXGS Studio. It is based on chiaki-ng, which is based on the original Chiaki project. Source code and project documentation are currently available at <https://github.com/sowankispassah/nxgs_play>.
 
 ## Fork Attribution
 
@@ -13,7 +13,7 @@ The original chiaki-ng and Chiaki credits, contributor attributions, copyright n
 
 ## Source Code Availability
 
-The complete corresponding source code for NXGS Gaming is available at: https://github.com/soowankispassah/nxgs_gaming
+The complete corresponding source code for NXGS Gaming is available at: https://github.com/sowankispassah/nxgs_play
 
 ## Branding Assets
 
