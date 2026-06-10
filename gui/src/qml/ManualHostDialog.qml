@@ -10,9 +10,9 @@ import "controls" as C
 DialogView {
     title: qsTr("Add Manual Console")
     buttonText: qsTr("Add")
-    buttonEnabled: deviceNameField.text.trim() && hostField.text.trim() && (consoleCombo.model[consoleCombo.currentIndex].index != -1)
+    buttonEnabled: hostField.text.trim() && (consoleCombo.model[consoleCombo.currentIndex].index != -1)
     onAccepted: {
-        Chiaki.addManualHost(consoleCombo.model[consoleCombo.currentIndex].index, hostField.text.trim(), deviceNameField.text.trim());
+        Chiaki.addManualHost(consoleCombo.model[consoleCombo.currentIndex].index, hostField.text.trim());
         close();
     }
 
@@ -29,18 +29,6 @@ DialogView {
 
             Label {
                 Layout.alignment: Qt.AlignRight
-                text: qsTr("Device name:")
-            }
-
-            C.TextField {
-                id: deviceNameField
-                Layout.preferredWidth: 400
-                firstInFocusChain: true
-                placeholderText: qsTr("Living Room PS5")
-            }
-
-            Label {
-                Layout.alignment: Qt.AlignRight
                 text: qsTr("Host:")
             }
 
@@ -48,7 +36,7 @@ DialogView {
                 id: hostField
                 echoMode: Chiaki.settings.streamerMode ? TextInput.Password : TextInput.Normal
                 Layout.preferredWidth: 400
-                placeholderText: qsTr("192.168.1.100")
+                firstInFocusChain: true
             }
 
             Label {

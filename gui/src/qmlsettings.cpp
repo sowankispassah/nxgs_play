@@ -1712,20 +1712,7 @@ QVariantList QmlSettings::registeredHosts() const
     QVariantList out;
     for (const auto &host : settings->GetRegisteredHosts()) {
         QVariantMap m;
-        QString display_name = host.GetDisplayName();
-        if(display_name.isEmpty())
-        {
-            for(const auto &manual_host : settings->GetManualHosts())
-            {
-                if(manual_host.GetRegistered() && manual_host.GetMAC() == host.GetServerMAC() && !manual_host.GetDisplayName().isEmpty())
-                {
-                    display_name = manual_host.GetDisplayName();
-                    break;
-                }
-            }
-        }
         m["name"] = host.GetServerNickname();
-        m["displayName"] = display_name.isEmpty() ? host.GetServerNickname() : display_name;
         m["mac"] = host.GetServerMAC().ToString();
         m["ps5"] = chiaki_target_is_ps5(host.GetTarget());
         out.append(m);
@@ -1836,25 +1823,6 @@ QString QmlSettings::stringForStreamMenuShortcut() const
 void QmlSettings::deleteRegisteredHost(int index)
 {
     settings->RemoveRegisteredHost(settings->GetRegisteredHosts().value(index).GetServerMAC());
-}
-
-void QmlSettings::setRegisteredHostDisplayName(int index, const QString &display_name)
-{
-    QList<RegisteredHost> hosts = settings->GetRegisteredHosts();
-    if(index < 0 || index >= hosts.size())
-        return;
-    RegisteredHost host = hosts.value(index);
-    host.SetDisplayName(display_name.trimmed());
-    settings->AddRegisteredHost(host);
-    for(const auto &manual_host : settings->GetManualHosts())
-    {
-        if(manual_host.GetRegistered() && manual_host.GetMAC() == host.GetServerMAC())
-        {
-            ManualHost updated_manual_host = manual_host;
-            updated_manual_host.SetDisplayName(display_name.trimmed());
-            settings->SetManualHost(updated_manual_host);
-        }
-    }
 }
 
 void QmlSettings::refreshAudioDevices()
@@ -2061,7 +2029,7 @@ void QmlSettings::exportSettings()
     if(profile.isEmpty())
         profile = "Default";
     QString fileName = QFileDialog::getSaveFileName(QApplication::focusWidget(), tr("Export %1 Profile To File").arg(profile),
-                                                    QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/nxgs-gaming-" + profile,
+                                                    QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/chiaki-ng-" + profile,
                                                     tr("Settings files (*.ini)"),
                                                     nullptr,
                                                     QFileDialog::DontUseNativeDialog | QFileDialog::DontConfirmOverwrite);
@@ -2095,7 +2063,7 @@ QString QmlSettings::chooseSteamBasePath()
 void QmlSettings::exportPlaceboSettings()
 {
     QString fileName = QFileDialog::getSaveFileName(QApplication::focusWidget(), tr("Export Placebo Renderer Settings To File"),
-                                                    QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/nxgs-gaming-placebo",
+                                                    QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/chiaki-ng-placebo",
                                                     tr("Settings files (*.ini)"),
                                                     nullptr,
                                                     QFileDialog::DontUseNativeDialog | QFileDialog::DontConfirmOverwrite);

@@ -208,11 +208,6 @@ Rectangle {
                         infoLabel.text = qsTr("PSN couldn't establish connection with PlayStation. Please try again ...")
                     failTimer.running = true
                     break
-                case Chiaki.PsnConnectState.ConnectFailedPsnDeviceUnavailable:
-                    if(!cancelling)
-                        infoLabel.text = qsTr("PSN could not find this console for the current account. Refresh PSN Hosts and make sure this console is signed into the same PSN account with Remote Play enabled.")
-                    failTimer.running = true
-                    break
                 case Chiaki.PsnConnectState.ConnectFailedConsoleUnreachable:
                     if(!cancelling)
                         infoLabel.text = qsTr("Couldn't contact PlayStation over established connection, likely unsupported network type")

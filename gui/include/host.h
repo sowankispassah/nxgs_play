@@ -63,9 +63,6 @@ class RegisteredHost
 		QString ap_name;
 		HostMAC server_mac;
 		QString server_nickname;
-		QString display_name;
-		QString psn_duid;
-		QString last_host;
 		char rp_regist_key[CHIAKI_SESSION_AUTH_SIZE];
 		uint32_t rp_key_type;
 		uint8_t rp_key[0x10];
@@ -77,15 +74,9 @@ class RegisteredHost
 
 		RegisteredHost(const ChiakiRegisteredHost &chiaki_host);
 		void SetConsolePin(RegisteredHost &host, QString console_pin);
-		void SetDisplayName(const QString &name) { display_name = name; }
-		void SetPsnDuid(const QString &duid) { psn_duid = duid; }
-		void SetLastHost(const QString &host) { last_host = host; }
 		ChiakiTarget GetTarget() const			{ return target; }
 		const HostMAC &GetServerMAC() const 	{ return server_mac; }
 		const QString &GetServerNickname() const	{ return server_nickname; }
-		const QString &GetDisplayName() const	{ return display_name; }
-		const QString &GetPsnDuid() const		{ return psn_duid; }
-		const QString &GetLastHost() const		{ return last_host; }
 		const QByteArray GetRPRegistKey() const	{ return QByteArray(rp_regist_key, sizeof(rp_regist_key)); }
 		const QByteArray GetRPKey() const		{ return QByteArray((const char *)rp_key, sizeof(rp_key)); }
 		const QString GetConsolePin() const				{ return console_pin; }
@@ -99,20 +90,17 @@ class ManualHost
 	private:
 		int id;
 		QString host;
-		QString display_name;
 		bool registered;
 		HostMAC registered_mac;
 
 	public:
 		ManualHost();
-		ManualHost(int id, const QString &host, const QString &display_name, bool registered, const HostMAC &registered_mac);
+		ManualHost(int id, const QString &host, bool registered, const HostMAC &registered_mac);
 		ManualHost(int id, const ManualHost &o);
 		void SetHost(const QString &hostadd);
-		void SetDisplayName(const QString &name);
 
 		int GetID() const 			{ return id; }
 		QString GetHost() const 	{ return host; }
-		QString GetDisplayName() const	{ return display_name; }
 		bool GetRegistered() const	{ return registered; }
 		HostMAC GetMAC() const 		{ return registered_mac; }
 
@@ -121,7 +109,7 @@ class ManualHost
 		void SaveToSettings(QSettings *settings) const;
 		static ManualHost LoadFromSettings(QSettings *settings);
 };
-static bool operator==(const ManualHost &a, const ManualHost &b)	{ return (a.GetID() == b.GetID() && a.GetHost() == b.GetHost() && a.GetDisplayName() == b.GetDisplayName() && a.GetRegistered() == b.GetRegistered() && a.GetMAC() == b.GetMAC()); }
+static bool operator==(const ManualHost &a, const ManualHost &b)	{ return (a.GetID() == b.GetID() && a.GetHost() == b.GetHost() && a.GetRegistered() == b.GetRegistered() && a.GetMAC() == b.GetMAC()); }
 class PsnHost
 {
 	private:
@@ -137,9 +125,6 @@ class PsnHost
 		QString GetName() const          { return name; }
 		bool IsPS5() const               { return ps5;  }
 		ChiakiTarget GetTarget() const;
-
-		void SaveToSettings(QSettings *settings) const;
-		static PsnHost LoadFromSettings(QSettings *settings);
 
 };
 

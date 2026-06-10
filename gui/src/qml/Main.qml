@@ -38,11 +38,11 @@ Item {
             item.forceActiveFocus(Qt.TabFocusReason);
     }
 
-    function autoRegister(auto, host, ps5, displayName = "") {
+    function autoRegister(auto, host, ps5) {
         if(auto)
             Chiaki.autoRegister()
         else
-            showRegistDialog(host, ps5, displayName);
+            showRegistDialog(host, ps5);
     }
 
     function openDisplaySettings() {
@@ -182,8 +182,8 @@ Item {
     }
 
 
-    function showRegistDialog(host, ps5, displayName = "") {
-        stack.push(registDialogComponent, {host: host, ps5: ps5, deviceName: displayName});
+    function showRegistDialog(host, ps5) {
+        stack.push(registDialogComponent, {host: host, ps5: ps5});
     }
 
     function showSettingsDialog() {
@@ -545,15 +545,15 @@ Item {
             errorHideTimer.start();
         }
 
-        function onRegistDialogRequested(host, ps5, duid, displayName) {
+        function onRegistDialogRequested(host, ps5, duid) {
             if(!duid)
-                showRegistDialog(host, ps5, displayName);
+                showRegistDialog(host, ps5);
             else
             {
                 if(ps5)
-                    root.showConfirmDialog(qsTr("Registration Type"), qsTr("Would you like to use automatic registration?"), () => root.autoRegister(true, host, ps5, displayName), () => root.autoRegister(false, host, ps5, displayName))
+                    root.showConfirmDialog(qsTr("Registration Type"), qsTr("Would you like to use automatic registration?"), () => root.autoRegister(true, host, ps5), () => root.autoRegister(false, host, ps5))
                 else
-                    root.showConfirmDialog(qsTr("Registration Type"), qsTr("Would you like to use automatic registration (must be main PS4 console registered to your PSN)?"), () => root.autoRegister(true, host, ps5, displayName), () => root.autoRegister(false, host, ps5, displayName))
+                    root.showConfirmDialog(qsTr("Registration Type"), qsTr("Would you like to use automatic registration (must be main PS4 console registered to your PSN)?"), () => root.autoRegister(true, host, ps5), () => root.autoRegister(false, host, ps5))
             }
         }
 

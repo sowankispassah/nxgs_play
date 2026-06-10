@@ -108,7 +108,6 @@ public:
         DataConnectionFinished,
         ConnectFailed,
         ConnectFailedStart,
-        ConnectFailedPsnDeviceUnavailable,
         ConnectFailedConsoleUnreachable,
     };
     Q_ENUM(PsnConnectState);
@@ -184,11 +183,11 @@ public:
 
     Q_INVOKABLE void deleteHost(int index);
     Q_INVOKABLE void wakeUpHost(int index, QString nickname = QString());
-    Q_INVOKABLE void addManualHost(int index, const QString &address, const QString &display_name);
+    Q_INVOKABLE void addManualHost(int index, const QString &address);
     Q_INVOKABLE void hideHost(const QString &mac_string, const QString &host_nickname);
     Q_INVOKABLE void unhideHost(const QString &mac_string);
-    Q_INVOKABLE bool registerHost(const QString &host, const QString &display_name, const QString &psn_id, const QString &pin, const QString &cpin, bool broadcast, int target, const QJSValue &callback);
-    Q_INVOKABLE void connectToHost(int index, QString nickname = QString(), QString duid = QString(), QString address = QString(), QString mac = QString());
+    Q_INVOKABLE bool registerHost(const QString &host, const QString &psn_id, const QString &pin, const QString &cpin, bool broadcast, int target, const QJSValue &callback);
+    Q_INVOKABLE void connectToHost(int index, QString nickname = QString());
     Q_INVOKABLE void stopSession(bool sleep);
     Q_INVOKABLE void sessionGoHome();
     Q_INVOKABLE void enterPin(const QString &pin);
@@ -247,7 +246,7 @@ signals:
     void sessionError(const QString &title, const QString &text);
     void sessionPinDialogRequested();
     void sessionStopDialogRequested();
-    void registDialogRequested(const QString &host, bool ps5, const QString &duid, const QString &display_name);
+    void registDialogRequested(const QString &host, bool ps5, const QString &duid);
     void psnLoginAccountIdDone(const QString &accountId);
     void psnLoginAccountIdError(const QString &error);
 
@@ -265,8 +264,8 @@ private:
         bool registered;
 
         QString GetHostAddr() const { return discovered ? discovery_host.host_addr : manual_host.GetHost(); }
-        bool IsPS5() const { return !duid.isEmpty() ? psn_host.IsPS5() : (discovered ? discovery_host.ps5 :
-            (registered ? chiaki_target_is_ps5(registered_host.GetTarget()) : true)); }
+        bool IsPS5() const { return discovered ? discovery_host.ps5 :
+            (registered ? chiaki_target_is_ps5(registered_host.GetTarget()) : true); }
     };
 
     DisplayServer displayServerAt(int index) const;
@@ -277,9 +276,6 @@ private:
     void updateDiscoveryHosts();
     void updatePsnHosts();
     void updatePsnHostsThread();
-    void rebuildPsnHostsFromSettings();
-    bool findRegisteredHostForPsnHost(const PsnHost &psn_host, RegisteredHost *registered_host = nullptr) const;
-    QString displayNameForRegisteredHost(const RegisteredHost &registered_host) const;
     void updateAudioVolume();
     void resumeFromSleep();
     uint32_t getStreamShortcut() const;
@@ -339,8 +335,6 @@ private:
     bool wakeup_start = false;
     QMap<QString, PsnHost> psn_hosts = {};
     QMap<QString, PsnHost> psn_nickname_hosts = {};
-    QSet<QString> live_psn_duids = {};
-    bool psn_hosts_live_loaded = false;
 #ifdef CHIAKI_HAVE_WEBENGINE
     SecUaRequestInterceptor * request_interceptor = {};
 #endif

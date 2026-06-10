@@ -344,7 +344,6 @@ QmlBackend::QmlBackend(Settings *settings, QmlMainWindow *window)
     updateControllerMappings();
     connect(settings, &Settings::ControllerMappingsUpdated, this, &QmlBackend::updateControllerMappings);
     connect(this, &QmlBackend::controllersChanged, this, &QmlBackend::updateControllerMappings);
-    rebuildPsnHostsFromSettings();
     auto_connect_mac = settings->GetAutoConnectHost().GetServerMAC();
     auto_connect_nickname = settings->GetAutoConnectHost().GetServerNickname();
     psn_auto_connect_timer = new QTimer(this);
@@ -526,99 +525,6 @@ void QmlBackend::updateAudioVolume()
         session->SetAudioVolume(settings->GetAudioVolume());
 }
 
-void QmlBackend::rebuildPsnHostsFromSettings()
-{
-    psn_hosts.clear();
-    psn_nickname_hosts.clear();
-
-    for(const auto &registered_host : settings->GetRegisteredHosts())
-    {
-        if(registered_host.GetPsnDuid().isEmpty())
-            continue;
-        PsnHost psn_host(registered_host.GetPsnDuid(), registered_host.GetServerNickname(), chiaki_target_is_ps5(registered_host.GetTarget()));
-        psn_nickname_hosts.insert(psn_host.GetName(), psn_host);
-        psn_hosts.insert(psn_host.GetDuid(), psn_host);
-        settings->AddKnownPsnHost(psn_host);
-    }
-    for(const auto &host : settings->GetKnownPsnHosts())
-    {
-        psn_nickname_hosts.insert(host.GetName(), host);
-        RegisteredHost registered_host;
-        if(findRegisteredHostForPsnHost(host, &registered_host))
-        {
-            if(registered_host.GetPsnDuid().isEmpty())
-            {
-                registered_host.SetPsnDuid(host.GetDuid());
-                settings->AddRegisteredHost(registered_host);
-            }
-        }
-        if((host.IsPS5() && findRegisteredHostForPsnHost(host))
-            || (!host.IsPS5() && settings->GetPS4RegisteredHostsRegistered() > 0))
-            psn_hosts.insert(host.GetDuid(), host);
-    }
-}
-
-bool QmlBackend::findRegisteredHostForPsnHost(const PsnHost &psn_host, RegisteredHost *registered_host) const
-{
-    const QString psn_duid = psn_host.GetDuid().trimmed();
-    if(!psn_duid.isEmpty())
-    {
-        for(const auto &host : settings->GetRegisteredHosts())
-        {
-            if(host.GetPsnDuid().trimmed().compare(psn_duid, Qt::CaseInsensitive) == 0)
-            {
-                if(registered_host)
-                    *registered_host = host;
-                return true;
-            }
-        }
-    }
-
-    if(settings->GetNicknameRegisteredHostRegistered(psn_host.GetName()))
-    {
-        if(registered_host)
-            *registered_host = settings->GetNicknameRegisteredHost(psn_host.GetName());
-        return true;
-    }
-
-    const QString psn_name = psn_host.GetName().trimmed();
-    for(const auto &host : settings->GetRegisteredHosts())
-    {
-        if(host.GetServerNickname().trimmed().compare(psn_name, Qt::CaseInsensitive) == 0
-            || (!host.GetDisplayName().trimmed().isEmpty() && host.GetDisplayName().trimmed().compare(psn_name, Qt::CaseInsensitive) == 0))
-        {
-            if(registered_host)
-                *registered_host = host;
-            return true;
-        }
-    }
-    return false;
-}
-
-QString QmlBackend::displayNameForRegisteredHost(const RegisteredHost &registered_host) const
-{
-    if(!registered_host.GetDisplayName().isEmpty())
-        return registered_host.GetDisplayName();
-    for(const auto &host : settings->GetRegisteredHosts())
-    {
-        const bool same_mac = host.GetServerMAC() == registered_host.GetServerMAC();
-        const bool same_duid = !host.GetPsnDuid().isEmpty()
-            && !registered_host.GetPsnDuid().isEmpty()
-            && host.GetPsnDuid().compare(registered_host.GetPsnDuid(), Qt::CaseInsensitive) == 0;
-        const bool same_nickname = !host.GetServerNickname().isEmpty()
-            && !registered_host.GetServerNickname().isEmpty()
-            && host.GetServerNickname().compare(registered_host.GetServerNickname(), Qt::CaseInsensitive) == 0;
-        if((same_mac || same_duid || same_nickname) && !host.GetDisplayName().isEmpty())
-            return host.GetDisplayName();
-    }
-    for(const auto &manual_host : settings->GetManualHosts())
-    {
-        if(manual_host.GetRegistered() && manual_host.GetMAC() == registered_host.GetServerMAC() && !manual_host.GetDisplayName().isEmpty())
-            return manual_host.GetDisplayName();
-    }
-    return registered_host.GetServerNickname();
-}
-
 void QmlBackend::goToSleep()
 {
     qCInfo(chiakiGui) << "About to sleep";
@@ -694,7 +600,6 @@ void QmlBackend::profileChanged()
     discovery_manager.SetSettings(settings);
     window->setSettings(settings);
     setDiscoveryEnabled(true);
-    rebuildPsnHostsFromSettings();
 
     auto_connect_mac = settings->GetAutoConnectHost().GetServerMAC();
     auto_connect_nickname = settings->GetAutoConnectHost().GetServerNickname();
@@ -831,7 +736,6 @@ QVariantList QmlBackend::hosts() const
     QVariantList out;
     QList<QString> discovered_nicknames;
     QList<ManualHost> discovered_manual_hosts;
-    QStringList represented_registered_macs;
     size_t registered_discovered_ps4s = 0;
     auto manual_hosts = settings->GetManualHosts();
     for (const auto &host : discovery_manager.GetHosts()) {
@@ -842,7 +746,7 @@ QVariantList QmlBackend::hosts() const
         if(registered && hidden)
         {
             settings->RemoveHiddenHost(host_mac);
-            hidden = false;
+            bool hidden = false;
         }
         // Update hidden host nickname if it's changed
         if(hidden)
@@ -867,42 +771,8 @@ QVariantList QmlBackend::hosts() const
             }
         }
         m["manual"] = manual;
-        QString manual_display_name;
-        QString duid = "";
-        if(manual)
-        {
-            for(const auto &manual_host : std::as_const(discovered_manual_hosts))
-            {
-                if(manual_host.GetRegistered() && manual_host.GetMAC() == host_mac && manual_host.GetHost() == host.host_addr)
-                {
-                    manual_display_name = manual_host.GetDisplayName();
-                    break;
-                }
-            }
-        }
-        QString registered_display_name;
-        if(registered)
-        {
-            RegisteredHost registered_host = settings->GetRegisteredHost(host_mac);
-            bool registered_host_updated = false;
-            registered_display_name = registered_host.GetDisplayName();
-            if(registered_host.GetLastHost() != host.host_addr)
-            {
-                registered_host.SetLastHost(host.host_addr);
-                registered_host_updated = true;
-            }
-            if(registered_host.GetPsnDuid().isEmpty() && psn_nickname_hosts.contains(host.host_name))
-            {
-                registered_host.SetPsnDuid(psn_nickname_hosts.value(host.host_name).GetDuid());
-                registered_host_updated = true;
-            }
-            if(registered_host_updated)
-                settings->AddRegisteredHost(registered_host);
-            represented_registered_macs.append(host_mac.ToString());
-        }
         m["name"] = host.host_name;
-        m["displayName"] = !manual_display_name.isEmpty() ? manual_display_name :
-            (!registered_display_name.isEmpty() ? registered_display_name : host.host_name);
+        QString duid = "";
         if(!registered)
         {
             if(psn_nickname_hosts.contains(host.host_name))
@@ -911,8 +781,6 @@ QVariantList QmlBackend::hosts() const
                 duid =  psn_nickname_hosts.value(QString("Main PS4 Console")).GetDuid();
         }
         m["duid"] = duid;
-        m["psnLive"] = !duid.isEmpty() && live_psn_duids.contains(duid);
-        m["psnLiveKnown"] = psn_hosts_live_loaded;
         m["address"] = host.host_addr;
         m["ps5"] = host.ps5;
         m["mac"] = host_mac.ToString();
@@ -930,9 +798,7 @@ QVariantList QmlBackend::hosts() const
         QVariantMap m;
         m["discovered"] = false;
         m["manual"] = true;
-        QString display_name = host.GetDisplayName().isEmpty() ? host.GetHost() : host.GetDisplayName();
-        m["name"] = display_name;
-        m["displayName"] = display_name;
+        m["name"] = host.GetHost();
         m["duid"] = "";
         m["address"] = host.GetHost();
         m["state"] = "unknown";
@@ -942,18 +808,8 @@ QVariantList QmlBackend::hosts() const
             auto registered = settings->GetRegisteredHost(host.GetMAC());
             m["registered"] = true;
             m["name"] = registered.GetServerNickname();
-            m["displayName"] = !host.GetDisplayName().isEmpty() ? host.GetDisplayName() :
-                (!registered.GetDisplayName().isEmpty() ? registered.GetDisplayName() : registered.GetServerNickname());
             m["ps5"] = chiaki_target_is_ps5(registered.GetTarget());
             m["mac"] = registered.GetServerMAC().ToString();
-            if(!registered.GetPsnDuid().isEmpty())
-            {
-                m["duid"] = registered.GetPsnDuid();
-                m["address"] = "";
-            }
-            m["psnLive"] = !registered.GetPsnDuid().isEmpty() && live_psn_duids.contains(registered.GetPsnDuid());
-            m["psnLiveKnown"] = psn_hosts_live_loaded;
-            represented_registered_macs.append(registered.GetServerMAC().ToString());
         }
         out.append(m);
     }
@@ -979,59 +835,10 @@ QVariantList QmlBackend::hosts() const
         m["manual"] = false;
         m["display"] = true;
         m["name"] = host.GetName();
-        QString display_name = host.GetName();
-        RegisteredHost registered_host;
-        if(findRegisteredHostForPsnHost(host, &registered_host))
-        {
-            if(represented_registered_macs.contains(registered_host.GetServerMAC().ToString()))
-                continue;
-            display_name = displayNameForRegisteredHost(registered_host);
-            represented_registered_macs.append(registered_host.GetServerMAC().ToString());
-            if(registered_host.GetPsnDuid() != host.GetDuid())
-            {
-                registered_host.SetPsnDuid(host.GetDuid());
-                settings->AddRegisteredHost(registered_host);
-            }
-        }
-        m["displayName"] = display_name;
         m["duid"] = host.GetDuid();
         m["address"] = "";
-        m["psnLive"] = live_psn_duids.contains(host.GetDuid());
-        m["psnLiveKnown"] = psn_hosts_live_loaded;
         m["registered"] = true;
         m["ps5"] = host.IsPS5();
-        out.append(m);
-    }
-    for (const auto &host : settings->GetRegisteredHosts()) {
-        const QString mac = host.GetServerMAC().ToString();
-        if(represented_registered_macs.contains(mac))
-            continue;
-        QVariantMap m;
-        QString display_name = host.GetDisplayName();
-        if(display_name.isEmpty())
-        {
-            for(const auto &manual_host : settings->GetManualHosts())
-            {
-                if(manual_host.GetRegistered() && manual_host.GetMAC() == host.GetServerMAC() && !manual_host.GetDisplayName().isEmpty())
-                {
-                    display_name = manual_host.GetDisplayName();
-                    break;
-                }
-            }
-        }
-        m["discovered"] = false;
-        m["manual"] = false;
-        m["display"] = true;
-        m["name"] = host.GetServerNickname();
-        m["displayName"] = display_name.isEmpty() ? host.GetServerNickname() : display_name;
-        m["duid"] = host.GetPsnDuid();
-        m["address"] = host.GetLastHost();
-        m["psnLive"] = !host.GetPsnDuid().isEmpty() && live_psn_duids.contains(host.GetPsnDuid());
-        m["psnLiveKnown"] = psn_hosts_live_loaded;
-        m["state"] = host.GetLastHost().isEmpty() ? "unknown" : "saved";
-        m["registered"] = true;
-        m["ps5"] = chiaki_target_is_ps5(host.GetTarget());
-        m["mac"] = mac;
         out.append(m);
     }
     return out;
@@ -1069,18 +876,6 @@ void QmlBackend::checkPsnConnection(const ChiakiErrorCode &err)
             break;
         case CHIAKI_ERR_HOST_UNREACH:
             setConnectState(PsnConnectState::ConnectFailedConsoleUnreachable);
-            if(session)
-            {
-                chiaki_log_mutex.lock();
-                chiaki_log_ctx = nullptr;
-                chiaki_log_mutex.unlock();
-                session->deleteLater();
-                session = nullptr;
-                setDiscoveryEnabled(true);
-            }
-            break;
-        case CHIAKI_ERR_HTTP_NONOK:
-            setConnectState(PsnConnectState::ConnectFailedPsnDeviceUnavailable);
             if(session)
             {
                 chiaki_log_mutex.lock();
@@ -1510,14 +1305,14 @@ void QmlBackend::setConsolePin(int index, QString console_pin)
     settings->AddRegisteredHost(server.registered_host);
 }
 
-void QmlBackend::addManualHost(int index, const QString &address, const QString &display_name)
+void QmlBackend::addManualHost(int index, const QString &address)
 {
     HostMAC hmac;
     QList<RegisteredHost> registered_hosts = settings->GetRegisteredHosts();
     bool registered = (index >= 0 && (index < registered_hosts.length()));
     if (registered)
         hmac = registered_hosts.at(index).GetServerMAC();
-    ManualHost host(-1, address, display_name, registered, hmac);
+    ManualHost host(-1, address, registered, hmac);
     settings->SetManualHost(host);
 }
 
@@ -1564,7 +1359,7 @@ QVariantList QmlBackend::hiddenHosts() const
 }
 
 
-bool QmlBackend::registerHost(const QString &host, const QString &display_name, const QString &psn_id, const QString &pin, const QString &cpin, bool broadcast, int target, const QJSValue &callback)
+bool QmlBackend::registerHost(const QString &host, const QString &psn_id, const QString &pin, const QString &cpin, bool broadcast, int target, const QJSValue &callback)
 {
     ChiakiRegistInfo info = {};
     QByteArray hostb = host.toUtf8();
@@ -1601,24 +1396,18 @@ bool QmlBackend::registerHost(const QString &host, const QString &display_name, 
 
         regist_dialog_server = {};
     });
-    connect(regist, &QmlRegist::success, this, [this, host, display_name, callback](const RegisteredHost &rhost) {
+    connect(regist, &QmlRegist::success, this, [this, host, callback](const RegisteredHost &rhost) {
         QJSValue cb = callback;
         if (cb.isCallable())
             cb.call({QString(), true, true});
 
-        RegisteredHost registered_host = rhost;
-        registered_host.SetDisplayName(display_name.trimmed());
-        if(!regist_dialog_server.duid.isEmpty())
-            registered_host.SetPsnDuid(regist_dialog_server.duid);
-        settings->AddRegisteredHost(registered_host);
+        settings->AddRegisteredHost(rhost);
         if(regist_dialog_server.discovered == false)
         {
             ManualHost manual_host = regist_dialog_server.manual_host;
             if(manual_host.GetHost().isEmpty())
                 manual_host.SetHost(host);
-            if(!display_name.trimmed().isEmpty())
-                manual_host.SetDisplayName(display_name.trimmed());
-            manual_host.Register(registered_host);
+            manual_host.Register(rhost);
             settings->SetManualHost(manual_host);
         }
     });
@@ -1679,16 +1468,7 @@ void QmlBackend::finishAutoRegister(const ChiakiRegisteredHost &host)
         emit error(tr("PS4 Console Not Main"), tr("Can't proceed...%1 is not your main PS4 console in PSN").arg(regist_dialog_server.discovery_host.host_name));
         return;
     }
-    RegisteredHost registered_host(host);
-    if(!regist_dialog_server.duid.isEmpty())
-    {
-        registered_host.SetPsnDuid(regist_dialog_server.duid);
-        PsnHost psn_host(regist_dialog_server.duid, registered_host.GetServerNickname(), chiaki_target_is_ps5(registered_host.GetTarget()));
-        settings->AddKnownPsnHost(psn_host);
-        psn_nickname_hosts.insert(psn_host.GetName(), psn_host);
-        psn_hosts.insert(psn_host.GetDuid(), psn_host);
-    }
-    settings->AddRegisteredHost(registered_host);
+    settings->AddRegisteredHost(host);
     setConnectState(PsnConnectState::RegistrationFinished);
     updatePsnHosts();
 }
@@ -1734,68 +1514,16 @@ void QmlBackend::setWebEngineHints(QQuickWebEngineProfile *profile)
 }
 #endif
 
-void QmlBackend::connectToHost(int index, QString nickname, QString duid, QString address, QString mac)
+void QmlBackend::connectToHost(int index, QString nickname)
 {
-    Q_UNUSED(address);
-    Q_UNUSED(mac);
     window->setWindowAdjustable(false);
     auto server = displayServerAt(index);
-    const QString requested_duid = duid.trimmed();
-    if(!requested_duid.isEmpty())
-    {
-        DisplayServer duid_server;
-        if(psn_hosts.contains(requested_duid))
-        {
-            duid_server.valid = true;
-            duid_server.discovered = false;
-            duid_server.psn_host = psn_hosts.value(requested_duid);
-            duid_server.duid = requested_duid;
-            duid_server.registered = true;
-            RegisteredHost registered_host;
-            if(findRegisteredHostForPsnHost(duid_server.psn_host, &registered_host))
-                duid_server.registered_host = registered_host;
-        }
-        if(!duid_server.valid)
-        {
-            for(const auto &registered_host : settings->GetRegisteredHosts())
-            {
-                if(registered_host.GetPsnDuid().trimmed().compare(requested_duid, Qt::CaseInsensitive) == 0)
-                {
-                    duid_server.valid = true;
-                    duid_server.discovered = false;
-                    duid_server.registered = true;
-                    duid_server.registered_host = registered_host;
-                    duid_server.duid = registered_host.GetPsnDuid();
-                    duid_server.psn_host = PsnHost(duid_server.duid, registered_host.GetServerNickname(), chiaki_target_is_ps5(registered_host.GetTarget()));
-                    break;
-                }
-            }
-        }
-        if(duid_server.valid)
-            server = duid_server;
-    }
     if (!server.valid)
         return;
 
     if (!server.registered) {
         regist_dialog_server = server;
-        emit registDialogRequested(server.GetHostAddr(), server.IsPS5(), server.duid, server.manual_host.GetDisplayName());
-        return;
-    }
-
-    if(server.duid.isEmpty() && server.GetHostAddr().isEmpty())
-    {
-        window->setWindowAdjustable(true);
-        emit error(tr("Console address unavailable"),
-                   tr("This registered console is saved, but NXGS Gaming has not learned its PSN remote identity or last local address yet. Connect once while the console is discoverable or refresh PSN hosts, then it will stay reconnectable."));
-        return;
-    }
-
-    if(!server.duid.isEmpty() && psn_hosts_live_loaded && !live_psn_duids.contains(server.duid))
-    {
-        window->setWindowAdjustable(true);
-        emit error(tr("Console not available over PSN"),
-                   tr("This console is saved locally, but Sony PSN did not return it in the latest remote device list for this account. Refresh PSN Hosts while the console is online. If it still only works locally, NXGS Gaming cannot start a PSN remote session for this saved DUID until PSN returns the console."));
+        emit registDialogRequested(server.GetHostAddr(), server.IsPS5(), server.duid);
         return;
     }
 
@@ -1866,7 +1594,6 @@ void QmlBackend::connectToHost(int index, QString nickname, QString duid, QStrin
     }
     else
     {
-        settings->AddKnownPsnHost(server.psn_host);
         StreamSessionConnectInfo info(
                 settings,
                 server.psn_host.GetTarget(),
@@ -2009,7 +1736,6 @@ QmlBackend::DisplayServer QmlBackend::displayServerAt(int index) const
         return {};
     auto discovered = discovery_manager.GetHosts();
     auto manual = settings->GetManualHosts();
-    QStringList represented_registered_macs;
     if (index < discovered.size()) {
         DisplayServer server;
         server.valid = true;
@@ -2027,10 +1753,7 @@ QmlBackend::DisplayServer QmlBackend::displayServerAt(int index) const
         }
         server.duid = std::move(duid);
         if (server.registered)
-        {
             server.registered_host = settings->GetRegisteredHost(host_mac);
-            represented_registered_macs.append(server.registered_host.GetServerMAC().ToString());
-        }
         for (int i = 0; i < manual.size(); i++)
         {
             const auto &manual_host = manual.at(i);
@@ -2053,34 +1776,16 @@ QmlBackend::DisplayServer QmlBackend::displayServerAt(int index) const
         if (server.manual_host.GetRegistered() && settings->GetRegisteredHostRegistered(server.manual_host.GetMAC())) {
             server.registered = true;
             server.registered_host = settings->GetRegisteredHost(server.manual_host.GetMAC());
-            if(!server.registered_host.GetPsnDuid().isEmpty())
-            {
-                server.duid = server.registered_host.GetPsnDuid();
-                server.psn_host = PsnHost(server.duid, server.registered_host.GetServerNickname(), chiaki_target_is_ps5(server.registered_host.GetTarget()));
-            }
-            represented_registered_macs.append(server.registered_host.GetServerMAC().ToString());
         }
         return server;
     }
     index -= manual.size();
-    if (index >= 0)
+    if (index < psn_hosts.count())
     {
         DisplayServer server;
 
-        for(const auto &host : discovered)
-        {
-            HostMAC host_mac = host.GetHostMAC();
-            if(settings->GetRegisteredHostRegistered(host_mac))
-                represented_registered_macs.append(host_mac.ToString());
-        }
-        for(const auto &manual_host : manual)
-        {
-            if(manual_host.GetRegistered() && settings->GetRegisteredHostRegistered(manual_host.GetMAC()))
-                represented_registered_macs.append(manual_host.GetMAC().ToString());
-        }
-
         QMapIterator<QString, PsnHost> i(psn_hosts);
-        int visible_psn_index = 0;
+        size_t j = 0;
         while (i.hasNext())
         {
             i.next();
@@ -2091,63 +1796,19 @@ QmlBackend::DisplayServer QmlBackend::displayServerAt(int index) const
                 if(host.host_name == psn_host.GetName())
                     hidden = true;
             }
-            for (int waking_i = 0; waking_i < waking_sleeping_nicknames.size(); ++waking_i)
-            {
-                if(waking_sleeping_nicknames.at(waking_i) == psn_host.GetName())
-                    hidden = true;
-            }
             if(hidden)
                 continue;
-            RegisteredHost represented_registered_host;
-            if(findRegisteredHostForPsnHost(psn_host, &represented_registered_host)
-                && represented_registered_macs.contains(represented_registered_host.GetServerMAC().ToString()))
-                continue;
-            if(visible_psn_index == index)
+            if(j == index)
             {
                 server.valid = true;
                 server.discovered = false;
                 server.psn_host = std::move(psn_host);
                 server.duid = i.key();
                 server.registered = true;
-                RegisteredHost registered_host;
-                if(findRegisteredHostForPsnHost(server.psn_host, &registered_host))
-                {
-                    server.registered_host = registered_host;
-                    if(server.registered_host.GetPsnDuid() != server.duid)
-                    {
-                        server.registered_host.SetPsnDuid(server.duid);
-                        settings->AddRegisteredHost(server.registered_host);
-                    }
-                    represented_registered_macs.append(server.registered_host.GetServerMAC().ToString());
-                }
+                server.registered_host = settings->GetNicknameRegisteredHost(server.psn_host.GetName());
                 return server;
             }
-            visible_psn_index++;
-        }
-        index -= visible_psn_index;
-        for(const auto &host : psn_hosts)
-        {
-            RegisteredHost registered_host;
-            if(findRegisteredHostForPsnHost(host, &registered_host))
-                represented_registered_macs.append(registered_host.GetServerMAC().ToString());
-        }
-        for(const auto &registered_host : settings->GetRegisteredHosts())
-        {
-            if(represented_registered_macs.contains(registered_host.GetServerMAC().ToString()))
-                continue;
-            if(index == 0)
-            {
-                server.valid = true;
-                server.discovered = false;
-                server.manual_host = ManualHost(-1, registered_host.GetLastHost(), QString(), true, registered_host.GetServerMAC());
-                server.registered = true;
-                server.registered_host = registered_host;
-                server.duid = registered_host.GetPsnDuid();
-                if(!server.duid.isEmpty())
-                    server.psn_host = PsnHost(server.duid, registered_host.GetServerNickname(), chiaki_target_is_ps5(registered_host.GetTarget()));
-                return server;
-            }
-            index--;
+            j++;
         }
         return {};
     }
@@ -2927,8 +2588,6 @@ void QmlBackend::updatePsnHostsThread()
 
     ChiakiHolepunchDeviceInfo *device_info_ps5 = nullptr;
     size_t num_devices_ps5 = 0;
-    bool ps5_devices_loaded = false;
-    QSet<QString> refreshed_live_psn_duids;
     ChiakiLog backend_log;
     chiaki_log_init(&backend_log, settings->GetLogLevelMask(), chiaki_log_cb_print, nullptr);
     for(int i = 0; i < PSN_DEVICES_TRIES; i++)
@@ -2947,7 +2606,6 @@ void QmlBackend::updatePsnHostsThread()
                 num_devices_ps5 = 0;
             }
         }
-        ps5_devices_loaded = err == CHIAKI_ERR_SUCCESS;
         break;
     }
     for (size_t i = 0; i < num_devices_ps5; i++)
@@ -2961,37 +2619,20 @@ void QmlBackend::updatePsnHostsThread()
         QString name = QString(dev.device_name);
         bool ps5 = true;
         PsnHost psn_host(duid, name, ps5);
-        refreshed_live_psn_duids.insert(duid);
-        settings->AddKnownPsnHost(psn_host);
-        psn_nickname_hosts.insert(name, psn_host);
-        RegisteredHost registered_host;
-        if(findRegisteredHostForPsnHost(psn_host, &registered_host))
-        {
-            if(registered_host.GetPsnDuid() != duid)
-            {
-                registered_host.SetPsnDuid(duid);
-                settings->AddRegisteredHost(registered_host);
-            }
-            if(!psn_hosts.contains(duid))
-                psn_hosts.insert(duid, psn_host);
-        }
-    }
-    if(ps5_devices_loaded)
-    {
-        live_psn_duids = refreshed_live_psn_duids;
-        psn_hosts_live_loaded = true;
+        if(!psn_nickname_hosts.contains(name))
+            psn_nickname_hosts.insert(name, psn_host);
+	    if(!psn_hosts.contains(duid) && settings->GetNicknameRegisteredHostRegistered(name))
+		    psn_hosts.insert(duid, psn_host);
     }
     QByteArray duid_bytes(32, 'A');
     QString duid = QString(duid_bytes.toHex());
     QString name = QString("Main PS4 Console");
     bool ps5 = false;
     PsnHost psn_host(duid, name, ps5);
-    psn_nickname_hosts.insert(name, psn_host);
+    if(!psn_nickname_hosts.contains(name))
+        psn_nickname_hosts.insert(name, psn_host);
     if(!psn_hosts.contains(duid) && (settings->GetPS4RegisteredHostsRegistered() > 0))
-    {
         psn_hosts.insert(duid, psn_host);
-        settings->AddKnownPsnHost(psn_host);
-    }
 
     emit hostsChanged();
     qCInfo(chiakiGui) << "Updated PSN hosts";

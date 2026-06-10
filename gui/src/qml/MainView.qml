@@ -215,9 +215,9 @@ Pane {
 
             function connectToHost() {
                 if(modelData.discovered)
-                    Chiaki.connectToHost(index, modelData.name, modelData.duid || "", modelData.address || "", modelData.mac || "");
+                    Chiaki.connectToHost(index, modelData.name);
                 else
-                    Chiaki.connectToHost(index, modelData.name || "", modelData.duid || "", modelData.address || "", modelData.mac || "");
+                    Chiaki.connectToHost(index);
             }
 
             function wakeUpHost() {
@@ -260,11 +260,8 @@ Pane {
                     Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
                     text: {
                         let t = "";
-                        let displayName = modelData.displayName ? modelData.displayName : modelData.name;
-                        if (displayName)
-                            t += displayName + "\n";
-                        if (modelData.name && displayName && modelData.name !== displayName)
-                            t += qsTr("Console: %1").arg(modelData.name) + "\n";
+                        if (modelData.name)
+                            t += modelData.name + "\n";
                         if (modelData.address)
                             t += qsTr("Address: %1").arg(Chiaki.settings.streamerMode ? "hidden" : modelData.address);
                         if (modelData.mac)
@@ -273,8 +270,6 @@ Pane {
                         {
                             if(modelData.discovered)
                                 t += "\n" + qsTr("Automatic Registration Available");
-                            else if(modelData.psnLiveKnown && !modelData.psnLive)
-                                t += "\n" + qsTr("Saved PSN identity - not returned by PSN");
                             else
                                 t += "\n" + qsTr("Remote Connection via PSN");
                         } 
@@ -289,7 +284,7 @@ Pane {
                                     t += qsTr("discovered");
                             }
                             else
-                                t += modelData.manual ? qsTr("manual") : qsTr("saved console");
+                                t += qsTr("manual");
                         }
                         return t;
                     }

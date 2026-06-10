@@ -1896,11 +1896,10 @@ DialogView {
                             clip: true
                             model: Chiaki.settings.registeredHosts
                             delegate: ItemDelegate {
-                                text: "%1 (%2, %3)".arg(Chiaki.settings.streamerMode ? "hidden" : modelData.mac).arg(modelData.ps5 ? "PS5" : "PS4").arg(modelData.displayName)
+                                text: "%1 (%2, %3)".arg(Chiaki.settings.streamerMode ? "hidden" : modelData.mac).arg(modelData.ps5 ? "PS5" : "PS4").arg(modelData.name)
                                 height: 80
                                 width: parent ? parent.width : 0
                                 leftPadding: autoConnectButton.width + 40
-                                rightPadding: 230
 
                                 CheckBox {
                                     property bool firstInFocusChain: false
@@ -1981,19 +1980,6 @@ DialogView {
                                 }
 
                                 Button {
-                                    id: editButton
-                                    anchors {
-                                        right: deleteButton.left
-                                        verticalCenter: parent.verticalCenter
-                                        rightMargin: 10
-                                    }
-                                    text: qsTr("Edit")
-                                    onClicked: editConsoleNameDialog.openForConsole(index, modelData.displayName)
-                                    Material.roundedScale: Material.SmallScale
-                                }
-
-                                Button {
-                                    id: deleteButton
                                     property bool firstInFocusChain: false
                                     property bool lastInFocusChain: index > consolesView.count + hiddenConsolesView.count - 2
                                     Material.background: visualFocus ? Material.accent : undefined
@@ -3098,47 +3084,6 @@ DialogView {
         }
 
         Dialog {
-            id: editConsoleNameDialog
-            property int consoleIndex: -1
-            parent: Overlay.overlay
-            x: Math.round((root.width - width) / 2)
-            y: Math.round((root.height - height) / 2)
-            title: qsTr("Edit Console Name")
-            modal: true
-            standardButtons: Dialog.Ok | Dialog.Cancel
-            Material.roundedScale: Material.MediumScale
-            onOpened: editConsoleNameField.forceActiveFocus(Qt.TabFocusReason)
-            onAccepted: {
-                Chiaki.settings.setRegisteredHostDisplayName(consoleIndex, editConsoleNameField.text.trim());
-            }
-
-            function openForConsole(index, displayName) {
-                consoleIndex = index;
-                editConsoleNameField.text = displayName;
-                open();
-            }
-
-            GridLayout {
-                columns: 2
-                rowSpacing: 20
-                columnSpacing: 20
-
-                Label {
-                    Layout.alignment: Qt.AlignRight
-                    text: qsTr("Device name:")
-                }
-
-                C.TextField {
-                    id: editConsoleNameField
-                    Layout.preferredWidth: 360
-                    placeholderText: qsTr("Living Room PS5")
-                    Keys.onReturnPressed: editConsoleNameDialog.accept()
-                    Keys.onEscapePressed: editConsoleNameDialog.reject()
-                }
-            }
-        }
-
-        Dialog {
             id: aboutDialog
             parent: Overlay.overlay
             x: Math.round((root.width - width) / 2)
@@ -3166,11 +3111,7 @@ DialogView {
                     Layout.preferredWidth: 400
                     verticalAlignment: Text.AlignTop
                     wrapMode: Text.Wrap
-                    text: "<h1>NXGS Gaming</h1> by NXGS Studio, version %1
-                        <h2>Fork Attribution</h2>
-                        <p>NXGS Gaming is a fork of chiaki-ng, which is based on Chiaki. This fork is distributed under the GNU Affero General Public License v3.0.</p>
-                        <p>Source code: https://github.com/soowankispassah/nxgs_gaming</p>
-                        <p>NXGS Gaming is not affiliated with, endorsed by, sponsored by, or certified by Sony Interactive Entertainment LLC, PlayStation, chiaki-ng, Chiaki, or the original maintainers.</p>
+                    text: "<h1>NXGS Gaming</h1> by NXGS Studio, version %1\n                        <h2>Fork Attribution</h2>\n                        <p>NXGS Gaming is a fork of chiaki-ng, which is based on Chiaki. This fork is distributed under the GNU Affero General Public License v3.0.</p>\n                        <p>Source code: https://github.com/soowankispassah/nxgs_gaming</p>\n                        <p>NXGS Gaming is not affiliated with, endorsed by, sponsored by, or certified by Sony Interactive Entertainment LLC, PlayStation, chiaki-ng, Chiaki, or the original maintainers.</p>
 
                         <p>This program is free software: you can redistribute it and/or modify
                         it under the terms of the GNU Affero General Public License version 3

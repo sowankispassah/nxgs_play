@@ -10,7 +10,6 @@ import "controls" as C
 DialogView {
     property bool ps5: true
     property alias host: hostField.text
-    property alias deviceName: deviceNameField.text
     title: qsTr("Register Console")
     buttonText: qsTr("Register")
     buttonEnabled: hostField.text.trim() && pin.acceptableInput && cpin.acceptableInput && (!onlineId.visible || onlineId.text.trim()) && (!accountId.visible || accountId.text.trim())
@@ -20,7 +19,7 @@ DialogView {
     }
     onAccepted: {
         let psnId = onlineId.visible ? onlineId.text.trim() : accountId.text.trim();
-        let registerOk = Chiaki.registerHost(hostField.text.trim(), deviceNameField.text.trim(), psnId, pin.text.trim(), cpin.text.trim(), hostField.text.trim() == "255.255.255.255", consoleButtons.checkedButton.target, function(msg, ok, done) {
+        let registerOk = Chiaki.registerHost(hostField.text.trim(), psnId, pin.text.trim(), cpin.text.trim(), hostField.text.trim() == "255.255.255.255", consoleButtons.checkedButton.target, function(msg, ok, done) {
             if (!done)
                 logArea.text += msg + "\n";
             else
@@ -57,20 +56,6 @@ DialogView {
 
             Label {
                 Layout.alignment: Qt.AlignRight
-                text: qsTr("Device name:")
-            }
-
-            C.TextField {
-                id: deviceNameField
-                echoMode: Chiaki.settings.streamerMode ? TextInput.Password : TextInput.Normal
-                placeholderText: qsTr("Living Room PS5")
-                Layout.preferredWidth: 400
-                KeyNavigation.up: hostField
-                KeyNavigation.down: onlineId.visible ? onlineId : accountId
-            }
-
-            Label {
-                Layout.alignment: Qt.AlignRight
                 text: qsTr("PSN Online-ID:")
                 visible: onlineId.visible
             }
@@ -81,7 +66,6 @@ DialogView {
                 visible: ps4_7.checked
                 placeholderText: qsTr("username, case-sensitive")
                 Layout.preferredWidth: 400
-                KeyNavigation.up: deviceNameField
             }
 
             Label {
@@ -102,7 +86,7 @@ DialogView {
                     else
                         KeyNavigation.AfterItem
                 }
-                KeyNavigation.up: deviceNameField
+                KeyNavigation.up: hostField
                 KeyNavigation.right: loginButton
                 KeyNavigation.down: pin
 
@@ -117,10 +101,10 @@ DialogView {
                     bottomPadding: 18
                     text: qsTr("PSN Login")
                     onClicked: stack.push(psnLoginDialogComponent, {login: true, callback: (id) => accountId.text = id})
-                    visible: accountId.visible
+                    visible: !Chiaki.settings.psnAccountId
                     Material.roundedScale: Material.SmallScale
                     KeyNavigation.priority: KeyNavigation.BeforeItem
-                    KeyNavigation.up: deviceNameField
+                    KeyNavigation.up: hostField
                     KeyNavigation.left: accountId
                     KeyNavigation.right: lookupButton
                     KeyNavigation.down: pin
@@ -136,9 +120,9 @@ DialogView {
                     bottomPadding: 18
                     text: qsTr("Public Lookup")
                     onClicked: stack.push(psnLoginDialogComponent, {login: false, callback: (id) => accountId.text = id})
-                    visible: accountId.visible
+                    visible: !Chiaki.settings.psnAccountId
                     Material.roundedScale: Material.SmallScale
-                    KeyNavigation.up: deviceNameField
+                    KeyNavigation.up: hostField
                     KeyNavigation.priority: KeyNavigation.BeforeItem
                     KeyNavigation.left: loginButton
                     KeyNavigation.right: lookupButton

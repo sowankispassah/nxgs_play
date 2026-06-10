@@ -18,9 +18,6 @@ RegisteredHost::RegisteredHost(const RegisteredHost &o)
 	ap_name(o.ap_name),
 	server_mac(o.server_mac),
 	server_nickname(o.server_nickname),
-	display_name(o.display_name),
-	psn_duid(o.psn_duid),
-	last_host(o.last_host),
 	rp_key_type(o.rp_key_type),
 	console_pin(o.console_pin)
 {
@@ -56,9 +53,6 @@ void RegisteredHost::SaveToSettings(QSettings *settings) const
 	settings->setValue("ap_key", ap_key);
 	settings->setValue("ap_name", ap_name);
 	settings->setValue("server_nickname", server_nickname);
-	settings->setValue("display_name", display_name);
-	settings->setValue("psn_duid", psn_duid);
-	settings->setValue("last_host", last_host);
 	settings->setValue("server_mac", QByteArray((const char *)server_mac.GetMAC(), 6));
 	settings->setValue("rp_regist_key", QByteArray(rp_regist_key, sizeof(rp_regist_key)));
 	settings->setValue("rp_key_type", rp_key_type);
@@ -75,9 +69,6 @@ RegisteredHost RegisteredHost::LoadFromSettings(QSettings *settings)
 	r.ap_key = settings->value("ap_key").toString();
 	r.ap_name = settings->value("ap_name").toString();
 	r.server_nickname = settings->value("server_nickname").toString();
-	r.display_name = settings->value("display_name").toString();
-	r.psn_duid = settings->value("psn_duid").toString();
-	r.last_host = settings->value("last_host").toString();
 	auto server_mac = settings->value("server_mac").toByteArray();
 	if(server_mac.size() == 6)
 		r.server_mac = HostMAC((const uint8_t *)server_mac.constData());
@@ -114,10 +105,9 @@ ManualHost::ManualHost()
 	registered = false;
 }
 
-ManualHost::ManualHost(int id, const QString &host, const QString &display_name, bool registered, const HostMAC &registered_mac)
+ManualHost::ManualHost(int id, const QString &host, bool registered, const HostMAC &registered_mac)
 	: id(id),
 	host(host),
-	display_name(display_name),
 	registered(registered),
 	registered_mac(registered_mac)
 {
@@ -126,7 +116,6 @@ ManualHost::ManualHost(int id, const QString &host, const QString &display_name,
 ManualHost::ManualHost(int id, const ManualHost &o)
 	: id(id),
 	host(o.host),
-	display_name(o.display_name),
 	registered(o.registered),
 	registered_mac(o.registered_mac)
 {
@@ -137,17 +126,11 @@ void ManualHost::SetHost(const QString &hostadd)
 	host = hostadd;
 }
 
-void ManualHost::SetDisplayName(const QString &name)
-{
-	display_name = name;
-}
-
 
 void ManualHost::SaveToSettings(QSettings *settings) const
 {
 	settings->setValue("id", id);
 	settings->setValue("host", host);
-	settings->setValue("display_name", display_name);
 	settings->setValue("registered", registered);
 	settings->setValue("registered_mac", QByteArray((const char *)registered_mac.GetMAC(), 6));
 }
@@ -157,7 +140,6 @@ ManualHost ManualHost::LoadFromSettings(QSettings *settings)
 	ManualHost r;
 	r.id = settings->value("id", -1).toInt();
 	r.host = settings->value("host").toString();
-	r.display_name = settings->value("display_name").toString();
 	r.registered = settings->value("registered").toBool();
 	auto registered_mac = settings->value("registered_mac").toByteArray();
 	if(registered_mac.size() == 6)
@@ -191,19 +173,4 @@ ChiakiTarget PsnHost::GetTarget() const
 		ChiakiTarget target = CHIAKI_TARGET_PS4_10;
 		return target;
 	}
-}
-
-void PsnHost::SaveToSettings(QSettings *settings) const
-{
-	settings->setValue("duid", duid);
-	settings->setValue("name", name);
-	settings->setValue("ps5", ps5);
-}
-
-PsnHost PsnHost::LoadFromSettings(QSettings *settings)
-{
-	return PsnHost(
-		settings->value("duid").toString(),
-		settings->value("name").toString(),
-		settings->value("ps5", true).toBool());
 }
