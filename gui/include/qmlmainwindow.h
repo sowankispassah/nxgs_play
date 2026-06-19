@@ -213,6 +213,7 @@ private:
     void updateStatsOverlayGeometry();
     bool statsOverlayActive() const { return stats_overlay_visible; }
     void setKioskLocked(bool locked);
+    void setKioskSystemShortcutGuard(bool enabled);
     void applyKioskWindowFlags();
     void restoreDesktopWindow();
     bool handleKioskHotspotEvent(QMouseEvent *event);

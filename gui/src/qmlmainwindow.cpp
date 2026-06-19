@@ -59,11 +59,116 @@ extern "C" {
 #include <mutex>
 #include <utility>
 #include <atomic>
+#if defined(Q_OS_WIN)
+#include <windows.h>
+#endif
 #if defined(Q_OS_MACOS)
 #include <objc/message.h>
 #endif
 
 Q_LOGGING_CATEGORY(chiakiGui, "chiaki.gui", QtInfoMsg);
+#if defined(Q_OS_WIN)
+namespace {
+HHOOK kiosk_keyboard_hook = nullptr;
+QPointer<QmlMainWindow> kiosk_keyboard_window;
+bool kiosk_left_windows_down = false;
+bool kiosk_right_windows_down = false;
+bool kiosk_control_down = false;
+bool kiosk_alt_down = false;
+bool kiosk_shift_down = false;
+ULONGLONG kiosk_last_unlock_request = 0;
+
+bool IsKioskModifierKey(DWORD key)
+{
+    return key == VK_LWIN || key == VK_RWIN
+        || key == VK_LCONTROL || key == VK_RCONTROL || key == VK_CONTROL
+        || key == VK_LMENU || key == VK_RMENU || key == VK_MENU
+        || key == VK_LSHIFT || key == VK_RSHIFT || key == VK_SHIFT;
+}
+
+void UpdateKioskModifierState(DWORD key, bool down)
+{
+    switch (key) {
+    case VK_LWIN:
+        kiosk_left_windows_down = down;
+        break;
+    case VK_RWIN:
+        kiosk_right_windows_down = down;
+        break;
+    case VK_LCONTROL:
+    case VK_RCONTROL:
+    case VK_CONTROL:
+        kiosk_control_down = down;
+        break;
+    case VK_LMENU:
+    case VK_RMENU:
+    case VK_MENU:
+        kiosk_alt_down = down;
+        break;
+    case VK_LSHIFT:
+    case VK_RSHIFT:
+    case VK_SHIFT:
+        kiosk_shift_down = down;
+        break;
+    default:
+        break;
+    }
+}
+
+void QueueKioskUnlockRequest()
+{
+    const ULONGLONG now = GetTickCount64();
+    if (now - kiosk_last_unlock_request < 500)
+        return;
+    kiosk_last_unlock_request = now;
+
+    if (kiosk_keyboard_window) {
+        QMetaObject::invokeMethod(
+            kiosk_keyboard_window,
+            "kioskUnlockRequested",
+            Qt::QueuedConnection);
+    }
+}
+
+LRESULT CALLBACK KioskKeyboardHook(int code, WPARAM message, LPARAM data)
+{
+    if (code < 0 || !kiosk_keyboard_window)
+        return CallNextHookEx(kiosk_keyboard_hook, code, message, data);
+
+    const auto *key = reinterpret_cast<KBDLLHOOKSTRUCT *>(data);
+    const bool key_down = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
+    const bool key_up = message == WM_KEYUP || message == WM_SYSKEYUP;
+    if (!key_down && !key_up)
+        return CallNextHookEx(kiosk_keyboard_hook, code, message, data);
+
+    UpdateKioskModifierState(key->vkCode, key_down);
+
+    const bool windows_sequence =
+        key->vkCode == VK_LWIN || key->vkCode == VK_RWIN
+        || kiosk_left_windows_down || kiosk_right_windows_down;
+    const bool task_manager_sequence =
+        kiosk_control_down && kiosk_shift_down && key->vkCode == VK_ESCAPE;
+    const bool security_sequence =
+        kiosk_control_down && kiosk_alt_down && key->vkCode == VK_DELETE;
+    const bool shell_sequence =
+        (kiosk_control_down && key->vkCode == VK_ESCAPE)
+        || (kiosk_alt_down
+            && (key->vkCode == VK_TAB
+                || key->vkCode == VK_ESCAPE
+                || key->vkCode == VK_F4));
+
+    if (windows_sequence || task_manager_sequence || security_sequence || shell_sequence) {
+        if (key_down && !IsKioskModifierKey(key->vkCode))
+            QueueKioskUnlockRequest();
+        else if (key_down && (key->vkCode == VK_LWIN || key->vkCode == VK_RWIN))
+            QueueKioskUnlockRequest();
+        return 1;
+    }
+
+    return CallNextHookEx(kiosk_keyboard_hook, code, message, data);
+}
+}
+#endif
 
 class TimedMutexLocker
 {
@@ -2532,6 +2637,7 @@ QmlMainWindow::QmlMainWindow(const StreamSessionConnectInfo &connect_info)
 
 QmlMainWindow::~QmlMainWindow()
 {
+    setKioskSystemShortcutGuard(false);
     Q_ASSERT(!placebo_swapchain);
 
     if (stats_overlay_widget) {
@@ -5255,10 +5361,46 @@ void QmlMainWindow::fullscreenTime()
 
 void QmlMainWindow::setKioskLocked(bool locked)
 {
+    setKioskSystemShortcutGuard(locked);
     if (kiosk_locked == locked)
         return;
     kiosk_locked = locked;
     emit kioskLockedChanged();
+}
+void QmlMainWindow::setKioskSystemShortcutGuard(bool enabled)
+{
+#if defined(Q_OS_WIN)
+    if (enabled) {
+        kiosk_keyboard_window = this;
+        if (!kiosk_keyboard_hook) {
+            kiosk_left_windows_down = false;
+            kiosk_right_windows_down = false;
+            kiosk_control_down = false;
+            kiosk_alt_down = false;
+            kiosk_shift_down = false;
+            kiosk_keyboard_hook = SetWindowsHookExW(
+                WH_KEYBOARD_LL,
+                KioskKeyboardHook,
+                GetModuleHandleW(nullptr),
+                0);
+            if (!kiosk_keyboard_hook)
+                qCWarning(chiakiGui) << "Unable to install kiosk keyboard guard:" << GetLastError();
+        }
+    } else if (kiosk_keyboard_window == this) {
+        kiosk_keyboard_window.clear();
+        if (kiosk_keyboard_hook) {
+            UnhookWindowsHookEx(kiosk_keyboard_hook);
+            kiosk_keyboard_hook = nullptr;
+        }
+        kiosk_left_windows_down = false;
+        kiosk_right_windows_down = false;
+        kiosk_control_down = false;
+        kiosk_alt_down = false;
+        kiosk_shift_down = false;
+    }
+#else
+    Q_UNUSED(enabled);
+#endif
 }
 
 void QmlMainWindow::applyKioskWindowFlags()

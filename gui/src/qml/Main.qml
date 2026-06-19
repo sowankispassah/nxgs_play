@@ -843,7 +843,7 @@ Item {
                 rentalPaymentDialog.open();
         }
         function onControllerPinVerified() {
-            if (!kioskUnlockDialog.visible)
+            if (!kioskUnlockDialog.visible || !root.kioskUnlockAttempted)
                 return;
             root.kioskControlsAuthorized = true;
             root.kioskUnlockAttempted = false;
