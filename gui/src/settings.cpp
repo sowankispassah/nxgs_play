@@ -262,6 +262,58 @@ static void MigrateControllerMappings(QSettings *settings)
 	settings->endArray();
 }
 
+static void RestoreOriginalStreamDefaults(QSettings *settings)
+{
+	const QString migration_key = QStringLiteral("settings/nxgs_original_stream_defaults_restored");
+	if(settings->value(migration_key, false).toBool())
+		return;
+
+	const QStringList ps5_bitrate_keys = {
+		QStringLiteral("settings/bitrate_local_ps5"),
+		QStringLiteral("settings/bitrate_remote_ps5"),
+	};
+	for(const QString &key : ps5_bitrate_keys)
+	{
+		const unsigned int bitrate = settings->value(key, 0).toUInt();
+		if(bitrate == 10000 || bitrate == 15000)
+			settings->setValue(key, 0);
+	}
+
+	settings->setValue(migration_key, true);
+}
+
+static void RestoreOriginalWindowTypeSelection(QSettings *settings)
+{
+	const QString migration_key = QStringLiteral("settings/nxgs_original_window_type_selection_restored");
+	if(settings->value(migration_key, false).toBool())
+		return;
+
+	const QString window_type_key = QStringLiteral("settings/window_type");
+	const QString window_type = settings->value(window_type_key).toString();
+	if(window_type == QStringLiteral("Custom Resolution"))
+		settings->setValue(window_type_key, QStringLiteral("Fullscreen"));
+	else if(window_type == QStringLiteral("Adjust Manually"))
+		settings->setValue(window_type_key, QStringLiteral("Zoom"));
+
+	settings->setValue(migration_key, true);
+}
+
+static void RestoreOriginalVideoPresetSelection(QSettings *settings)
+{
+	const QString migration_key = QStringLiteral("settings/nxgs_original_video_preset_selection_restored");
+	if(settings->value(migration_key, false).toBool())
+		return;
+
+	const QString preset_key = QStringLiteral("settings/placebo_preset");
+	const QString preset = settings->value(preset_key).toString();
+	if(preset == QStringLiteral("high_quality_spatial"))
+		settings->setValue(preset_key, QStringLiteral("custom"));
+	else if(preset == QStringLiteral("high_quality_advanced_spatial"))
+		settings->setValue(preset_key, QStringLiteral("high_quality"));
+
+	settings->setValue(migration_key, true);
+}
+
 Settings::Settings(const QString &conf, QObject *parent) : QObject(parent),
 	time_format("yyyy-MM-dd HH:mm:ss t"),
 	settings(QCoreApplication::organizationName(), conf.isEmpty() ? QCoreApplication::applicationName() : QStringLiteral("%1-%2").arg(QCoreApplication::applicationName(), conf)),
@@ -272,6 +324,9 @@ Settings::Settings(const QString &conf, QObject *parent) : QObject(parent),
 	MigrateSettings(&settings);
 	MigrateVideoProfile(&settings);
 	MigrateControllerMappings(&settings);
+	RestoreOriginalStreamDefaults(&settings);
+	RestoreOriginalWindowTypeSelection(&settings);
+	RestoreOriginalVideoPresetSelection(&settings);
 	manual_hosts_id_next = 0;
 	settings.setValue("version", SETTINGS_VERSION);
 	LoadRegisteredHosts();
@@ -647,7 +702,7 @@ void Settings::SetCodecRemotePS5(ChiakiCodec codec)
 
 unsigned int Settings::GetAudioBufferSizeDefault() const
 {
-	return 9600;
+	return 5760;
 }
 
 unsigned int Settings::GetAudioBufferSizeRaw() const

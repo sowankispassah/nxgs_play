@@ -7,12 +7,13 @@ if(APPLE)
 	enable_language(OBJCXX)
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Concurrent Svg Qml Quick Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Concurrent Network Svg Qml Quick Widgets)
 if(Qt6_VERSION VERSION_GREATER_EQUAL "6.10.0")
 	find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
 endif()
 
 find_package(Qt6 COMPONENTS WebEngineQuick)
+find_package(Qt6 COMPONENTS WebSockets)
 find_package(Qt6 COMPONENTS DBus)
 
 if(WIN32)
@@ -41,6 +42,8 @@ set(SOURCE_FILES
 	src/psntoken.cpp
 	include/jsonrequester.h
 	src/jsonrequester.cpp
+	include/rentalmanager.h
+	src/rentalmanager.cpp
 	src/qml/qml.qrc
 	include/qmlmainwindow.h
 	src/qmlmainwindow.cpp
@@ -104,7 +107,7 @@ if(CHIAKI_ENABLE_CLI)
 	target_link_libraries(chiaki chiaki-cli-lib)
 endif()
 
-target_link_libraries(chiaki Qt::Core Qt::Gui Qt::GuiPrivate Qt::Concurrent Qt::Svg Qt::Qml Qt::Quick Qt::Widgets)
+target_link_libraries(chiaki Qt::Core Qt::Gui Qt::GuiPrivate Qt::Concurrent Qt::Network Qt::Svg Qt::Qml Qt::Quick Qt::Widgets)
 if (${Qt6DBus_FOUND} AND NOT WIN32)
 	target_link_libraries(chiaki Qt::DBus)
 if (NOT APPLE)
@@ -114,6 +117,10 @@ endif()
 if (${Qt6WebEngineQuick_FOUND})
 	target_link_libraries(chiaki Qt::WebEngineQuick)
 	target_compile_definitions(chiaki PRIVATE CHIAKI_HAVE_WEBENGINE)
+endif()
+if (${Qt6WebSockets_FOUND})
+	target_link_libraries(chiaki Qt::WebSockets)
+	target_compile_definitions(chiaki PRIVATE CHIAKI_HAVE_QT_WEBSOCKETS)
 endif()
 target_link_libraries(chiaki SDL2::SDL2)
 if(CHIAKI_ENABLE_SPEEX)

@@ -5,6 +5,7 @@
 #include "qmlmainwindow.h"
 #include "qmlcontroller.h"
 #include "qmlsettings.h"
+#include "rentalmanager.h"
 
 #include <QObject>
 #include <QMutex>
@@ -93,6 +94,7 @@ class QmlBackend : public QObject
     Q_PROPERTY(bool controllerMappingInProgress READ controllerMappingInProgress NOTIFY controllerMappingInProgressChanged)
     Q_PROPERTY(bool controllerMappingAltered READ controllerMappingAltered NOTIFY controllerMappingAlteredChanged)
     Q_PROPERTY(bool enableAnalogStickMapping READ enableAnalogStickMapping WRITE setEnableAnalogStickMapping NOTIFY enableAnalogStickMappingChanged)
+    Q_PROPERTY(RentalManager* rental READ rental CONSTANT)
 
 public:
 
@@ -116,6 +118,7 @@ public:
 
     QmlMainWindow *qmlWindow() const;
     QmlSettings *qmlSettings() const;
+    RentalManager *rental() const { return rental_manager; }
     StreamSession *qmlSession() const;
     QList<QmlController*> qmlControllers() const;
 
@@ -169,6 +172,7 @@ public:
     void setAllowJoystickBackgroundEvents();
 
     void setIsAppActive();
+    void startRentalRemotePlay(const QVariantMap &console);
 
     void profileChanged();
     bool prepareFrameForPresentation(ChiakiFfmpegFrame &frame, bool use_opengl_renderer);
@@ -201,6 +205,7 @@ public:
     Q_INVOKABLE void initPsnAuth(const QUrl &url, const QJSValue &callback);
     Q_INVOKABLE void psnCancel(bool stop_thread);
     Q_INVOKABLE void refreshPsnToken();
+    Q_INVOKABLE QVariantList discoveredConsoleCandidates() const;
     Q_INVOKABLE void beginControllerMapping(bool reset_mapping);
     Q_INVOKABLE void creatingControllerMapping(bool creating_controller_mapping);
     Q_INVOKABLE void updateButton(int chiaki_button, QString physical_button, int new_index);
@@ -285,6 +290,7 @@ private:
     Settings *settings = {};
     QmlSettings *settings_qml = {};
     QmlMainWindow *window = {};
+    RentalManager *rental_manager = {};
     StreamSession *session = {};
     QThread *frame_thread = {};
     QTimer *psn_reconnect_timer = {};

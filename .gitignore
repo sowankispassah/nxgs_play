@@ -40,3 +40,4 @@ chiaki.conf
 *.vscode
 site/
 .tools/
+supabase/.temp/

@@ -1,0 +1,4 @@
+interface:
+  display_name: "NXGS Streaming Guard"
+  short_description: "Protect NXGS streaming UI"
+  default_prompt: "Use this skill before changing NXGS settings pages or streaming-related code."

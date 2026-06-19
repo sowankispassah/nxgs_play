@@ -44,7 +44,7 @@ Pane {
     Keys.onReturnPressed: if (hostsView.currentItem) hostsView.currentItem.connectToHost()
     Keys.onYesPressed: if (hostsView.currentItem) hostsView.currentItem.wakeUpHost()
     Keys.onNoPressed: if (hostsView.currentItem) hostsView.currentItem.deleteHost()
-    Keys.onEscapePressed: root.showConfirmDialog(qsTr("Quit"), qsTr("Are you sure you want to quit?"), () => Qt.quit())
+    Keys.onEscapePressed: root.goBack()
     Keys.onPressed: (event) => {
         if (event.modifiers)
             return;
@@ -86,12 +86,12 @@ Pane {
 
             Button {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 100
+                Layout.preferredWidth: 130
                 flat: true
-                text: "×"
-                font.pixelSize: 60
+                text: qsTr("Back")
+                font.pixelSize: 22
                 focusPolicy: Qt.NoFocus
-                onClicked: Qt.quit()
+                onClicked: root.goBack()
                 Material.roundedScale: Material.SmallScale
             }
 
@@ -187,7 +187,10 @@ Pane {
             bottomMargin: 50
         }
         clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.VerticalFlick
         model: Chiaki.hosts
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
         onCountChanged: {
             if(!hostsView.currentItem)
                 hostsView.incrementCurrentIndex();

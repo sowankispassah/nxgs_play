@@ -4542,12 +4542,12 @@ bool QmlMainWindow::hasPendingFrameOverflow()
 bool QmlMainWindow::pendingFrameOverflowEnabled() const
 {
     static const bool enabled = []() {
-        const QByteArray value = qgetenv("CHIAKI_ENABLE_PENDING_OVERFLOW");
+        const QByteArray value = qgetenv("CHIAKI_DISABLE_PENDING_OVERFLOW");
         if (value.isEmpty())
-            return false;
+            return true;
 
         const QByteArray normalized = value.trimmed().toLower();
-        return normalized != "0" && normalized != "false" && normalized != "off";
+        return normalized == "0" || normalized == "false" || normalized == "off";
     }();
     return enabled;
 }
@@ -4594,9 +4594,6 @@ int QmlMainWindow::pendingFrameOverflowLimit(int submission_depth_limit) const
     if (!pendingFrameOverflowEnabled())
         return 0;
 
-    // Disabled by default. Set CHIAKI_ENABLE_PENDING_OVERFLOW=1 to restore
-    // the extra pending-frame queue for either VSync or non-VSync presentation.
-    //
     // Keep a little extra slack beyond the active libplacebo queue depth.
     // The pending slot already accounts for one frame; this buffer is meant
     // to absorb short render stalls without immediately evicting older frames.

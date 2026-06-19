@@ -1,0 +1,4 @@
+interface:
+  display_name: "NXGS Build Validation"
+  short_description: "Run the NXGS build after code changes."
+  default_prompt: "Use this skill after modifying NXGS source files to run the configured build and report the result."

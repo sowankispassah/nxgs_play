@@ -222,6 +222,17 @@ void QmlSettings::setLogVerbose(bool verbose)
     emit logVerboseChanged();
 }
 
+bool QmlSettings::dualSense() const
+{
+    return settings->GetDualSenseEnabled();
+}
+
+void QmlSettings::setDualSense(bool dualSense)
+{
+    settings->SetDualSenseEnabled(dualSense);
+    emit dualSenseChanged();
+}
+
 bool QmlSettings::logSanitize() const
 {
     return settings->GetLogSanitize();
@@ -1876,6 +1887,7 @@ void QmlSettings::refreshAllKeys()
     emit disconnectActionChanged();
     emit suspendActionChanged();
     emit logVerboseChanged();
+    emit dualSenseChanged();
     emit logSanitizeChanged();
     emit vSyncEnabledChanged();
     emit hapticOverrideChanged();

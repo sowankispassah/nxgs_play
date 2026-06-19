@@ -258,6 +258,8 @@ class Settings : public QObject
 
 		bool GetLogVerbose() const 				{ return settings.value("settings/log_verbose", false).toBool(); }
 		void SetLogVerbose(bool enabled)		{ settings.setValue("settings/log_verbose", enabled); }
+		bool GetDualSenseEnabled() const		{ return settings.value("settings/dualsense_enabled", true).toBool(); }
+		void SetDualSenseEnabled(bool enabled)	{ settings.setValue("settings/dualsense_enabled", enabled); }
 		bool GetLogSanitize() const            { return settings.value("settings/log_sanitize", true).toBool(); }
 		void SetLogSanitize(bool enabled)      { settings.setValue("settings/log_sanitize", enabled); }
 		bool GetVSyncEnabled() const           { return settings.value("settings/vsync", false).toBool(); }

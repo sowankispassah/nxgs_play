@@ -32,6 +32,7 @@
 #include <QDesktopServices>
 #include <QtConcurrent>
 #include <QTimer>
+#include <QTcpSocket>
 
 extern "C" {
 #include <chiaki/time.h>
@@ -293,6 +294,14 @@ QmlBackend::QmlBackend(Settings *settings, QmlMainWindow *window)
     qmlRegisterUncreatableType<QmlMainWindow>(uri, 1, 0, "ChiakiWindow", {});
     qmlRegisterUncreatableType<QmlSettings>(uri, 1, 0, "ChiakiSettings", {});
     qmlRegisterUncreatableType<StreamSession>(uri, 1, 0, "ChiakiSession", {});
+    qmlRegisterUncreatableType<RentalManager>(uri, 1, 0, "RentalManager", {});
+
+    rental_manager = new RentalManager(this);
+    connect(rental_manager, &RentalManager::consoleAssigned, this, &QmlBackend::startRentalRemotePlay);
+    connect(rental_manager, &RentalManager::stopRemotePlayRequested, this, [this]() {
+        if (session)
+            stopSession(false);
+    });
 
     QObject *frame_obj = new QObject();
     frame_thread = new QThread(frame_obj);
@@ -512,6 +521,99 @@ QmlMainWindow *QmlBackend::qmlWindow() const
 QmlSettings *QmlBackend::qmlSettings() const
 {
     return settings_qml;
+}
+
+void QmlBackend::startRentalRemotePlay(const QVariantMap &console)
+{
+    QString tailscaleIp = console.value(QStringLiteral("tailscale_ip")).toString().trimmed();
+    const int cidrIndex = tailscaleIp.indexOf('/');
+    if (cidrIndex >= 0)
+        tailscaleIp = tailscaleIp.left(cidrIndex);
+    const QString requestedNickname = console.value(QStringLiteral("registered_host_nickname")).toString().trimmed();
+    const QString consoleName = console.value(QStringLiteral("name")).toString().trimmed();
+    const QString macAddress = console.value(QStringLiteral("mac_address")).toString().trimmed().toLower();
+
+    RegisteredHost registeredHost;
+    bool found = false;
+    for (const auto &host : settings->GetRegisteredHosts()) {
+        const QString hostMac = host.GetServerMAC().ToString().toLower();
+        const QString hostNickname = host.GetServerNickname();
+        if ((!macAddress.isEmpty() && hostMac == macAddress)
+            || (!requestedNickname.isEmpty() && hostNickname.compare(requestedNickname, Qt::CaseInsensitive) == 0)
+            || (!consoleName.isEmpty() && hostNickname.compare(consoleName, Qt::CaseInsensitive) == 0)) {
+            registeredHost = host;
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        qCWarning(chiakiGui) << "Rental assigned console is not registered locally. Expected nickname"
+                             << (requestedNickname.isEmpty() ? consoleName : requestedNickname)
+                             << "or MAC" << macAddress;
+        emit error(tr("Service unavailable"),
+                   tr("Console temporarily unavailable. Please contact staff. Error code: NXGS-REG-404"));
+        rental_manager->endSession();
+        return;
+    }
+
+    const QString launchHost = tailscaleIp;
+    const QString launchHostSource = QStringLiteral("backend");
+
+    if (launchHost.isEmpty()) {
+        qCWarning(chiakiGui) << "Rental assigned console is missing backend host address for"
+                             << registeredHost.GetServerNickname();
+        emit error(tr("Service unavailable"),
+                   tr("Console temporarily unavailable. Please contact staff. Error code: NXGS-CN-0000"));
+        rental_manager->endSession();
+        return;
+    }
+    {
+        QTcpSocket preflightSocket;
+        preflightSocket.connectToHost(launchHost, 9295);
+        if (!preflightSocket.waitForConnected(1500)) {
+            qCWarning(chiakiGui) << "Rental console preflight failed for" << registeredHost.GetServerNickname()
+                                 << "at" << launchHost << "from" << launchHostSource
+                                 << ":" << preflightSocket.errorString();
+            emit error(tr("Service unavailable"),
+                       tr("Console temporarily unavailable. Please contact staff. Error code: NXGS-CN-9295"));
+            rental_manager->endSession();
+            return;
+        }
+        preflightSocket.disconnectFromHost();
+    }
+    qCInfo(chiakiGui) << "Starting rental remote play using" << launchHostSource << "address for" << registeredHost.GetServerNickname();
+
+    bool fullscreen = false, zoom = false, stretch = false;
+    switch (settings->GetWindowType()) {
+    case WindowType::Fullscreen:
+        fullscreen = true;
+        break;
+    case WindowType::Zoom:
+        zoom = true;
+        break;
+    case WindowType::Stretch:
+        stretch = true;
+        break;
+    default:
+        break;
+    }
+    emit windowTypeUpdated(settings->GetWindowType());
+
+    StreamSessionConnectInfo info(
+            settings,
+            registeredHost.GetTarget(),
+            launchHost,
+            registeredHost.GetServerNickname(),
+            registeredHost.GetRPRegistKey(),
+            registeredHost.GetRPKey(),
+            registeredHost.GetConsolePin(),
+            QString(),
+            false,
+            fullscreen,
+            zoom,
+            stretch);
+    createSession(info);
 }
 
 StreamSession *QmlBackend::qmlSession() const
@@ -844,6 +946,27 @@ QVariantList QmlBackend::hosts() const
     return out;
 }
 
+QVariantList QmlBackend::discoveredConsoleCandidates() const
+{
+    QVariantList out;
+    for (const auto &host : discovery_manager.GetHosts()) {
+        const HostMAC hostMac = host.GetHostMAC();
+        QVariantMap item;
+        item[QStringLiteral("console_identifier")] = hostMac.ToString();
+        item[QStringLiteral("mac_address")] = hostMac.ToString();
+        item[QStringLiteral("detected_name")] = host.host_name;
+        item[QStringLiteral("name")] = host.host_name;
+        item[QStringLiteral("ip_address")] = host.host_addr;
+        item[QStringLiteral("tailscale_ip")] = host.host_addr;
+        item[QStringLiteral("state")] = chiaki_discovery_host_state_string(host.state);
+        item[QStringLiteral("remote_play_target")] = host.ps5 ? QStringLiteral("PS5") : QStringLiteral("PS4");
+        item[QStringLiteral("registered_host_nickname")] = host.host_name;
+        item[QStringLiteral("registered")] = settings->GetRegisteredHostRegistered(hostMac);
+        out.append(item);
+    }
+    return out;
+}
+
 bool QmlBackend::autoConnect() const
 {
     return auto_connect_mac.GetValue();
@@ -1154,6 +1277,8 @@ void QmlBackend::createSession(const StreamSessionConnectInfo &connect_info)
                 m += "\n" + tr("Reason") + ": \"" + reason_str + "\"";
             emit sessionError(tr("Session has quit"), m);
         }
+        if (rental_manager && rental_manager->hasActiveRental())
+            rental_manager->endSession();
 
         chiaki_log_mutex.lock();
         chiaki_log_ctx = nullptr;
@@ -1653,6 +1778,9 @@ void QmlBackend::stopSession(bool sleep)
 
     if (sleep)
         session->GoToBed();
+
+    if (rental_manager && rental_manager->hasActiveRental())
+        rental_manager->endSession();
 
     session->Stop();
 }

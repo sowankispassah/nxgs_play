@@ -304,7 +304,7 @@ StreamSessionConnectInfo::StreamSessionConnectInfo(
 	this->keyboard_controller_enabled = keyboard_controller_enabled_setting;
 	this->mouse_touch_enabled = settings->GetMouseTouchEnabled();
 	this->enable_keyboard = false;
-	this->enable_dualsense = true;
+	this->enable_dualsense = settings->GetDualSenseEnabled();
 	this->enable_idr_on_fec_failure = settings->GetIDROnFECFailureEnabled();
 	this->rumble_haptics_intensity = settings->GetRumbleHapticsIntensity();
 	this->buttons_by_pos = settings->GetButtonsByPosition();

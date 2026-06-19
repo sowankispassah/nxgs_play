@@ -136,7 +136,26 @@ Item {
         if (stack.depth > 1)
             stack.pop(stack.get(0));
         else
-            stack.replace(stack.get(0), mainViewComponent);
+            stack.replace(stack.get(0), rentalHomeViewComponent);
+    }
+
+    function showHostList() {
+        stack.push(hostListViewComponent);
+    }
+
+    function showControllerAdmin() {
+        stack.push(controllerAdminViewComponent);
+    }
+
+    function goBack() {
+        if (stack.depth > 1)
+            stack.pop();
+        else
+            showMainView();
+    }
+
+    function confirmQuit() {
+        root.showConfirmDialog(qsTr("Quit"), qsTr("Are you sure you want to quit?"), () => Qt.quit());
     }
 
     function showStreamView() {
@@ -258,7 +277,7 @@ Item {
         id: stack
         anchors.fill: parent
         hoverEnabled: false
-        initialItem: mainViewComponent
+        initialItem: rentalHomeViewComponent
         font.pixelSize: 20
 
         replaceEnter: Transition {
@@ -519,6 +538,89 @@ Item {
         id: remindDialog
     }
 
+    Dialog {
+        id: rentalPaymentDialog
+        property Item web: null
+        parent: Overlay.overlay
+        x: Math.round((root.width - width) / 2)
+        y: Math.round((root.height - height) / 2)
+        width: Math.min(root.width - 80, 900)
+        height: Math.min(root.height - 80, 720)
+        title: qsTr("Payment")
+        modal: true
+        closePolicy: Popup.NoAutoClose
+        standardButtons: Dialog.Cancel
+        Material.roundedScale: Material.MediumScale
+
+        function queryValue(url, key) {
+            const marker = key + "=";
+            const queryIndex = url.indexOf("?");
+            if (queryIndex < 0)
+                return "";
+            const parts = url.substring(queryIndex + 1).split("&");
+            for (let i = 0; i < parts.length; ++i) {
+                if (parts[i].indexOf(marker) === 0)
+                    return decodeURIComponent(parts[i].substring(marker.length));
+            }
+            return "";
+        }
+
+        function createPaymentWebView() {
+            if (web)
+                web.destroy();
+            web = null;
+            try {
+                web = Qt.createQmlObject("
+                    import QtWebEngine
+                    import com.nxgsstudio.nxgsgaming
+                    WebEngineView {
+                        settings {
+                            localContentCanAccessRemoteUrls: true
+                        }
+                        onContextMenuRequested: (request) => request.accepted = true
+                        onNavigationRequested: (request) => {
+                            const nextUrl = request.url.toString();
+                            if (nextUrl.indexOf('nxgs://razorpay-success') === 0) {
+                                Chiaki.rental.verifyPayment(
+                                    rentalPaymentDialog.queryValue(nextUrl, 'razorpay_payment_id'),
+                                    rentalPaymentDialog.queryValue(nextUrl, 'razorpay_order_id'),
+                                    rentalPaymentDialog.queryValue(nextUrl, 'razorpay_signature'));
+                                request.reject();
+                                rentalPaymentDialog.close();
+                            } else if (nextUrl.indexOf('nxgs://razorpay-cancelled') === 0) {
+                                Chiaki.rental.clearPayment();
+                                request.reject();
+                                rentalPaymentDialog.close();
+                            } else {
+                                request.accept();
+                            }
+                        }
+                    }", paymentWebHost, "rentalPaymentWebView");
+                web.anchors.fill = paymentWebHost;
+                web.loadHtml(Chiaki.rental.paymentHtml, "https://checkout.razorpay.com/");
+            } catch (error) {
+                Chiaki.rental.clearPayment();
+                root.showInfoDialog(qsTr("Payment unavailable"), qsTr("Qt WebEngine is required to complete Razorpay checkout in NXGS."));
+                rentalPaymentDialog.close();
+            }
+        }
+
+        onOpened: createPaymentWebView()
+        onRejected: Chiaki.rental.clearPayment()
+        onClosed: {
+            if (web) {
+                web.destroy();
+                web = null;
+            }
+        }
+
+        Item {
+            id: paymentWebHost
+            width: rentalPaymentDialog.width - 48
+            height: rentalPaymentDialog.height - 150
+        }
+    }
+
     Connections {
         target: Chiaki
 
@@ -562,9 +664,28 @@ Item {
         }
     }
 
+    Connections {
+        target: Chiaki.rental
+
+        function onPaymentHtmlChanged() {
+            if (Chiaki.rental.paymentHtml.length > 0)
+                rentalPaymentDialog.open();
+        }
+    }
+
     Component {
-        id: mainViewComponent
+        id: rentalHomeViewComponent
+        RentalHomeView { }
+    }
+
+    Component {
+        id: hostListViewComponent
         MainView { }
+    }
+
+    Component {
+        id: controllerAdminViewComponent
+        AdminDashboardView { }
     }
 
     Component {
