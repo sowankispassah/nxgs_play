@@ -161,6 +161,7 @@ public:
     Q_INVOKABLE void exitKioskMode();
     Q_INVOKABLE void minimizeForAdmin();
     Q_INVOKABLE void closeForAdmin();
+    Q_INVOKABLE void setKioskManagementMode(bool enabled);
     void armVerbosePlaceboQuietWindow();
     bool startupWarmupFrameActive() const { return startup_warmup_frame_active; }
 
@@ -412,6 +413,7 @@ private:
 
     QVulkanInstance *qt_vk_inst = {};
     bool kiosk_locked = true;
+    bool kiosk_management_mode = false;
     bool kiosk_close_authorized = false;
     int kiosk_hotspot_clicks = 0;
     QElapsedTimer kiosk_hotspot_timer;

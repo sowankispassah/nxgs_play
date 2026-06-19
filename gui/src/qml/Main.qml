@@ -146,7 +146,14 @@ Item {
         stack.push(hostListViewComponent);
     }
 
+    function showRentalHome() {
+        Chiaki.window.setKioskManagementMode(false);
+        if (stack.depth > 1)
+            stack.pop(stack.get(0), StackView.Immediate);
+        stack.replace(stack.get(0), rentalHomeViewComponent, {}, StackView.Immediate);
+    }
     function showControllerAdmin() {
+        Chiaki.window.setKioskManagementMode(Chiaki.rental.controllerAdminAuthenticated);
         stack.push(controllerAdminViewComponent);
     }
 

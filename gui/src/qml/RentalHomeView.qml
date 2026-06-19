@@ -5,8 +5,6 @@ import QtQuick.Controls.Material
 
 import com.nxgsstudio.nxgsgaming
 
-import "controls" as C
-
 Pane {
     id: rentalHome
     padding: 0
@@ -40,46 +38,6 @@ Pane {
         if (!Chiaki.rental.consoleAvailable)
             return qsTr("No console available. Please try again later.");
         return qsTr("Press Play to start.");
-    }
-
-    ToolButton {
-        id: closeButton
-        anchors {
-            top: parent.top
-            left: parent.left
-            margins: 20
-        }
-        z: 10
-        width: 64
-        height: 64
-        flat: true
-        text: "X"
-        font.pixelSize: 30
-        focusPolicy: Qt.NoFocus
-        ToolTip.visible: hovered
-        ToolTip.text: qsTr("Quit")
-        onClicked: root.confirmQuit()
-    }
-
-    ToolButton {
-        id: controllerButton
-        anchors {
-            top: parent.top
-            right: parent.right
-            margins: 20
-        }
-        z: 10
-        width: 64
-        height: 64
-        flat: true
-        icon.source: "qrc:/icons/user-24px.svg"
-        icon.width: 38
-        icon.height: 38
-        icon.color: "white"
-        focusPolicy: Qt.NoFocus
-        ToolTip.visible: hovered
-        ToolTip.text: qsTr("Profile")
-        onClicked: root.showControllerAdmin()
     }
 
     ColumnLayout {

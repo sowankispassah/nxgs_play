@@ -5317,7 +5317,7 @@ void QmlMainWindow::drainRenderThread()
 
 void QmlMainWindow::normalTime()
 {
-    if (kiosk_locked) {
+    if (kiosk_locked && !kiosk_management_mode) {
         emit kioskUnlockRequested();
         return;
     }
@@ -5361,7 +5361,7 @@ void QmlMainWindow::fullscreenTime()
 
 void QmlMainWindow::setKioskLocked(bool locked)
 {
-    setKioskSystemShortcutGuard(locked);
+    setKioskSystemShortcutGuard(locked && !kiosk_management_mode);
     if (kiosk_locked == locked)
         return;
     kiosk_locked = locked;
@@ -5405,12 +5405,27 @@ void QmlMainWindow::setKioskSystemShortcutGuard(bool enabled)
 
 void QmlMainWindow::applyKioskWindowFlags()
 {
-    const Qt::WindowFlags kiosk_flags =
-        desktop_window_flags | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint;
+    Qt::WindowFlags kiosk_flags = desktop_window_flags | Qt::FramelessWindowHint;
+    if (!kiosk_management_mode)
+        kiosk_flags |= Qt::WindowStaysOnTopHint;
+
     if (flags() != kiosk_flags)
         setFlags(kiosk_flags);
 }
 
+void QmlMainWindow::setKioskManagementMode(bool enabled)
+{
+    if (kiosk_management_mode == enabled)
+        return;
+
+    kiosk_management_mode = enabled;
+    setKioskSystemShortcutGuard(kiosk_locked && !kiosk_management_mode);
+    if (kiosk_locked) {
+        applyKioskWindowFlags();
+        showFullScreen();
+        requestActivate();
+    }
+}
 void QmlMainWindow::restoreDesktopWindow()
 {
     setMinimumSize(QSize(0, 0));
@@ -5434,6 +5449,7 @@ void QmlMainWindow::restoreDesktopWindow()
 void QmlMainWindow::enterKioskMode()
 {
     kiosk_close_authorized = false;
+    kiosk_management_mode = false;
     setKioskLocked(true);
     applyKioskWindowFlags();
     setWindowAdjustable(false);
@@ -5446,6 +5462,7 @@ void QmlMainWindow::exitKioskMode()
 {
     setKioskLocked(false);
     restoreDesktopWindow();
+    kiosk_management_mode = false;
     showNormal();
     requestActivate();
 }
@@ -5454,6 +5471,7 @@ void QmlMainWindow::minimizeForAdmin()
 {
     setKioskLocked(false);
     restoreDesktopWindow();
+    kiosk_management_mode = false;
     showMinimized();
 }
 
@@ -5461,12 +5479,13 @@ void QmlMainWindow::closeForAdmin()
 {
     kiosk_close_authorized = true;
     setKioskLocked(false);
+    kiosk_management_mode = false;
     close();
 }
 
 bool QmlMainWindow::handleKioskHotspotEvent(QMouseEvent *event)
 {
-    if (!kiosk_locked || event->button() != Qt::LeftButton)
+    if (!kiosk_locked || kiosk_management_mode || event->button() != Qt::LeftButton)
         return false;
 
     const QPointF position = event->position();
@@ -7622,7 +7641,7 @@ bool QmlMainWindow::handleShortcut(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_K
         && event->modifiers().testFlag(Qt::ControlModifier)
-        && event->modifiers().testFlag(Qt::AltModifier)) {
+        && event->modifiers().testFlag(Qt::AltModifier) && !kiosk_management_mode) {
         emit kioskUnlockRequested();
         return true;
     }
@@ -7630,7 +7649,7 @@ bool QmlMainWindow::handleShortcut(QKeyEvent *event)
     if (event->modifiers() == Qt::NoModifier) {
         switch (event->key()) {
         case Qt::Key_F11:
-            if (kiosk_locked) {
+            if (kiosk_locked && !kiosk_management_mode) {
                 emit kioskUnlockRequested();
                 return true;
             }
@@ -7665,8 +7684,10 @@ bool QmlMainWindow::handleShortcut(QKeyEvent *event)
         return true;
     case Qt::Key_Q:
 #ifndef Q_OS_MACOS
-        if (kiosk_locked)
+        if (kiosk_locked && !kiosk_management_mode)
             emit kioskUnlockRequested();
+        else if (kiosk_management_mode)
+            closeForAdmin();
         else
             close();
 #endif
@@ -7745,7 +7766,7 @@ bool QmlMainWindow::event(QEvent *event)
         QGuiApplication::sendEvent(quick_window, event);
         break;
     case QEvent::Close:
-        if (kiosk_locked && !kiosk_close_authorized) {
+        if (kiosk_locked && !kiosk_management_mode && !kiosk_close_authorized) {
             emit kioskUnlockRequested();
             event->ignore();
             return true;
@@ -7767,9 +7788,9 @@ bool QmlMainWindow::event(QEvent *event)
 
     switch (event->type()) {
     case QEvent::WindowStateChange:
-        if (kiosk_locked && windowState() != Qt::WindowFullScreen) {
+        if (kiosk_locked && !kiosk_management_mode && windowState() != Qt::WindowFullScreen) {
             QTimer::singleShot(0, this, [this]() {
-                if (kiosk_locked)
+                if (kiosk_locked && !kiosk_management_mode)
                     enterKioskMode();
             });
         }

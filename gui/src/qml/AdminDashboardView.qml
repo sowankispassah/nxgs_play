@@ -7,6 +7,7 @@ import com.nxgsstudio.nxgsgaming
 
 Pane {
     id: admin
+    focus: true
     padding: 0
 
     property int section: 0
@@ -54,8 +55,15 @@ Pane {
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
     }
 
-    StackView.onActivated: pinField.forceActiveFocus(Qt.TabFocusReason)
-    Keys.onEscapePressed: root.goBack()
+    StackView.onActivated: {
+        if (Chiaki.rental.controllerAdminAuthenticated) {
+            Chiaki.window.setKioskManagementMode(true);
+            admin.forceActiveFocus(Qt.TabFocusReason);
+        } else
+            pinField.forceActiveFocus(Qt.TabFocusReason);
+    }
+    Keys.priority: Keys.AfterItem
+    Keys.onEscapePressed: root.showRentalHome()
 
     function refreshAddList() {
         Chiaki.rental.listDiscoveredConsoles(Chiaki.discoveredConsoleCandidates());
@@ -422,6 +430,12 @@ Pane {
 
                 Item { Layout.fillHeight: true }
 
+                AdminNavButton {
+                    text: qsTr("Back to Player")
+                    symbol: "PL"
+                    collapsed: admin.sidebarCollapsed
+                    onClicked: root.showRentalHome()
+                }
                 AdminNavButton {
                     text: qsTr("Console Browser")
                     symbol: "CB"
@@ -2129,6 +2143,11 @@ Pane {
     Connections {
         target: Chiaki.rental
 
+        function onControllerAdminAuthenticatedChanged() {
+            Chiaki.window.setKioskManagementMode(Chiaki.rental.controllerAdminAuthenticated);
+            if (!Chiaki.rental.controllerAdminAuthenticated)
+                pinField.forceActiveFocus(Qt.TabFocusReason);
+        }
         function onControllerPinVerified() {
             pinField.text = "";
             admin.refreshAllAdminData();
