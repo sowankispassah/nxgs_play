@@ -29,6 +29,7 @@ extern "C" {
 #include <QStandardPaths>
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QScreen>
 #include <QFile>
 #include <QWidget>
 #include <QLabel>
@@ -2505,6 +2506,7 @@ QmlMainWindow::QmlMainWindow(Settings *settings, bool exit_app_on_stream_exit)
     : QWindow()
     , settings(settings)
 {
+    desktop_window_flags = flags();
     init(settings, exit_app_on_stream_exit);
 }
 
@@ -2512,6 +2514,7 @@ QmlMainWindow::QmlMainWindow(const StreamSessionConnectInfo &connect_info)
     : QWindow()
     , settings(connect_info.settings)
 {
+    desktop_window_flags = flags();
     direct_stream = true;
     emit directStreamChanged();
     init(connect_info.settings);
@@ -2877,10 +2880,11 @@ void QmlMainWindow::show()
     auto screen_size = QGuiApplication::primaryScreen()->availableSize();
     resize(screen_size);
 
-    if (qEnvironmentVariable("XDG_CURRENT_DESKTOP") == "gamescope")
+    if (kiosk_locked) {
+        enterKioskMode();
+    } else if (qEnvironmentVariable("XDG_CURRENT_DESKTOP") == "gamescope") {
         fullscreenTime();
-    else
-    {
+    } else {
         if(!settings->GetGeometry().isEmpty())
         {
             setGeometry(settings->GetGeometry());
@@ -5207,6 +5211,11 @@ void QmlMainWindow::drainRenderThread()
 
 void QmlMainWindow::normalTime()
 {
+    if (kiosk_locked) {
+        emit kioskUnlockRequested();
+        return;
+    }
+
     if(windowState() == Qt::WindowFullScreen)
     {
         if(was_maximized)
@@ -5242,6 +5251,102 @@ void QmlMainWindow::fullscreenTime()
     else
         was_maximized = false;
     showFullScreen();
+}
+
+void QmlMainWindow::setKioskLocked(bool locked)
+{
+    if (kiosk_locked == locked)
+        return;
+    kiosk_locked = locked;
+    emit kioskLockedChanged();
+}
+
+void QmlMainWindow::applyKioskWindowFlags()
+{
+    const Qt::WindowFlags kiosk_flags =
+        desktop_window_flags | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint;
+    if (flags() != kiosk_flags)
+        setFlags(kiosk_flags);
+}
+
+void QmlMainWindow::restoreDesktopWindow()
+{
+    setMinimumSize(QSize(0, 0));
+    if (flags() != desktop_window_flags)
+        setFlags(desktop_window_flags);
+
+    const QRect saved_geometry = settings ? settings->GetGeometry() : QRect();
+    if (!saved_geometry.isEmpty()) {
+        setGeometry(saved_geometry);
+    } else if (QScreen *screen = QGuiApplication::primaryScreen()) {
+        const QRect available = screen->availableGeometry();
+        const QSize desktop_size(qMin(1280, available.width()), qMin(800, available.height()));
+        const QPoint desktop_position(
+            available.x() + (available.width() - desktop_size.width()) / 2,
+            available.y() + (available.height() - desktop_size.height()) / 2);
+        setGeometry(QRect(desktop_position, desktop_size));
+    }
+    setWindowAdjustable(true);
+}
+
+void QmlMainWindow::enterKioskMode()
+{
+    kiosk_close_authorized = false;
+    setKioskLocked(true);
+    applyKioskWindowFlags();
+    setWindowAdjustable(false);
+    setStreamWindowAdjustable(false);
+    showFullScreen();
+    requestActivate();
+}
+
+void QmlMainWindow::exitKioskMode()
+{
+    setKioskLocked(false);
+    restoreDesktopWindow();
+    showNormal();
+    requestActivate();
+}
+
+void QmlMainWindow::minimizeForAdmin()
+{
+    setKioskLocked(false);
+    restoreDesktopWindow();
+    showMinimized();
+}
+
+void QmlMainWindow::closeForAdmin()
+{
+    kiosk_close_authorized = true;
+    setKioskLocked(false);
+    close();
+}
+
+bool QmlMainWindow::handleKioskHotspotEvent(QMouseEvent *event)
+{
+    if (!kiosk_locked || event->button() != Qt::LeftButton)
+        return false;
+
+    const QPointF position = event->position();
+    if (position.x() > 72 || position.y() > 72)
+        return false;
+
+    if (event->type() == QEvent::MouseButtonPress
+        || event->type() == QEvent::MouseButtonDblClick) {
+        if (!kiosk_hotspot_timer.isValid() || kiosk_hotspot_timer.elapsed() > 3000) {
+            kiosk_hotspot_timer.restart();
+            kiosk_hotspot_clicks = 1;
+        } else {
+            ++kiosk_hotspot_clicks;
+        }
+
+        if (kiosk_hotspot_clicks >= 5) {
+            kiosk_hotspot_clicks = 0;
+            kiosk_hotspot_timer.invalidate();
+            emit kioskUnlockRequested();
+        }
+    }
+    return true;
 }
 void QmlMainWindow::update()
 {
@@ -7373,9 +7478,20 @@ void QmlMainWindow::render()
 
 bool QmlMainWindow::handleShortcut(QKeyEvent *event)
 {
+    if (event->key() == Qt::Key_K
+        && event->modifiers().testFlag(Qt::ControlModifier)
+        && event->modifiers().testFlag(Qt::AltModifier)) {
+        emit kioskUnlockRequested();
+        return true;
+    }
+
     if (event->modifiers() == Qt::NoModifier) {
         switch (event->key()) {
         case Qt::Key_F11:
+            if (kiosk_locked) {
+                emit kioskUnlockRequested();
+                return true;
+            }
             if (windowState() != Qt::WindowFullScreen)
                 fullscreenTime();
             else
@@ -7407,7 +7523,10 @@ bool QmlMainWindow::handleShortcut(QKeyEvent *event)
         return true;
     case Qt::Key_Q:
 #ifndef Q_OS_MACOS
-        close();
+        if (kiosk_locked)
+            emit kioskUnlockRequested();
+        else
+            close();
 #endif
         return true;
     default:
@@ -7433,6 +7552,8 @@ bool QmlMainWindow::event(QEvent *event)
     case QEvent::MouseButtonRelease:
         if (static_cast<QMouseEvent*>(event)->source() != Qt::MouseEventNotSynthesized)
             return true;
+        if (handleKioskHotspotEvent(static_cast<QMouseEvent*>(event)))
+            return true;
         if (session && !grab_input) {
             if (event->type() == QEvent::MouseMove)
                 session->HandleMouseMoveEvent(static_cast<QMouseEvent*>(event), width(), height());
@@ -7445,6 +7566,8 @@ bool QmlMainWindow::event(QEvent *event)
         QGuiApplication::sendEvent(quick_window, event);
         break;
     case QEvent::MouseButtonDblClick:
+        if (handleKioskHotspotEvent(static_cast<QMouseEvent*>(event)))
+            return true;
         if(!settings->GetFullscreenDoubleClickEnabled())
             break;
         if (session && !grab_input) {
@@ -7480,6 +7603,11 @@ bool QmlMainWindow::event(QEvent *event)
         QGuiApplication::sendEvent(quick_window, event);
         break;
     case QEvent::Close:
+        if (kiosk_locked && !kiosk_close_authorized) {
+            emit kioskUnlockRequested();
+            event->ignore();
+            return true;
+        }
         if (!backend->closeRequested()) {
             event->ignore();
             return true;
@@ -7496,6 +7624,14 @@ bool QmlMainWindow::event(QEvent *event)
     bool ret = QWindow::event(event);
 
     switch (event->type()) {
+    case QEvent::WindowStateChange:
+        if (kiosk_locked && windowState() != Qt::WindowFullScreen) {
+            QTimer::singleShot(0, this, [this]() {
+                if (kiosk_locked)
+                    enterKioskMode();
+            });
+        }
+        break;
     case QEvent::Expose:
         if (isExposed())
             updateSwapchain();

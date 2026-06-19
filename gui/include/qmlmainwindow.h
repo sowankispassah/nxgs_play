@@ -5,6 +5,7 @@
 
 #include <QMutex>
 #include <QAtomicInteger>
+#include <QElapsedTimer>
 #include <QWindow>
 #include <QQuickWindow>
 #include <QLoggingCategory>
@@ -38,6 +39,7 @@ extern "C" {
 Q_DECLARE_LOGGING_CATEGORY(chiakiGui);
 
 class Settings;
+class QMouseEvent;
 class StreamSession;
 class QmlBackend;
 class QOffscreenSurface;
@@ -67,6 +69,7 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(int runtimeRendererBackend READ runtimeRendererBackend CONSTANT)
     Q_PROPERTY(double queueDepthAverage READ queueDepthAverage NOTIFY queueDepthAverageChanged)
     Q_PROPERTY(double pendingFrameAge READ pendingFrameAge NOTIFY pendingFrameAgeChanged)
+    Q_PROPERTY(bool kioskLocked READ kioskLocked NOTIFY kioskLockedChanged)
 
 public:
     enum class UpdateRequestReason {
@@ -115,6 +118,7 @@ public:
     bool directStream() const;
     int runtimeRendererBackend() const { return static_cast<int>(render_backend); }
     bool loadingTransitionComplete() const { return loading_transition_complete.loadAcquire() != 0; }
+    bool kioskLocked() const { return kiosk_locked; }
 
     bool keepVideo() const;
     void setKeepVideo(bool keep);
@@ -153,6 +157,10 @@ public:
     Q_INVOKABLE void setStatsOverlayActive(bool active);
     Q_INVOKABLE void noteLoadingTransitionComplete();
     Q_INVOKABLE void presentStartupWarmupFrame(unsigned width, unsigned height, bool hdr);
+    Q_INVOKABLE void enterKioskMode();
+    Q_INVOKABLE void exitKioskMode();
+    Q_INVOKABLE void minimizeForAdmin();
+    Q_INVOKABLE void closeForAdmin();
     void armVerbosePlaceboQuietWindow();
     bool startupWarmupFrameActive() const { return startup_warmup_frame_active; }
 
@@ -183,6 +191,8 @@ signals:
     void loadingTransitionCompleteChanged();
     void statsOverlayActiveChanged();
 
+    void kioskLockedChanged();
+    void kioskUnlockRequested();
 private:
     friend class BufferedPlaybackPacerThread;
     friend class DeferredPresentPacerThread;
@@ -202,6 +212,10 @@ private:
     void scheduleBufferedUpdate(UpdateRequestReason reason);
     void updateStatsOverlayGeometry();
     bool statsOverlayActive() const { return stats_overlay_visible; }
+    void setKioskLocked(bool locked);
+    void applyKioskWindowFlags();
+    void restoreDesktopWindow();
+    bool handleKioskHotspotEvent(QMouseEvent *event);
     void armQuickNeedSync(const char *reason);
     void scheduleRenderIfBacklog(UpdateRequestReason reason = UpdateRequestReason::PendingFrame);
     void handleBufferedPlaybackWake(qint64 timer_fire_us);
@@ -396,6 +410,11 @@ private:
     bool present_vsync_enabled = true;
 
     QVulkanInstance *qt_vk_inst = {};
+    bool kiosk_locked = true;
+    bool kiosk_close_authorized = false;
+    int kiosk_hotspot_clicks = 0;
+    QElapsedTimer kiosk_hotspot_timer;
+    Qt::WindowFlags desktop_window_flags = Qt::Window;
     QOpenGLContext *qt_gl_context = {};
     QOffscreenSurface *qt_gl_offscreen_surface = {};
     QQmlEngine *qml_engine = {};

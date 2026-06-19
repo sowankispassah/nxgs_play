@@ -11,6 +11,9 @@ Item {
     property bool initialAsk: false
     readonly property bool preferSeparateStreamSettingsWindows: Chiaki.window.runtimeRendererBackend === 1 && Chiaki.session
     property bool useSeparateStreamSettingsWindows: false
+    property bool kioskControlsAuthorized: false
+    property bool kioskUnlockAttempted: false
+    property bool kioskDialogInputGrabbed: false
     Material.theme: Material.Dark
     Material.accent: "#00a7ff"
 
@@ -155,7 +158,27 @@ Item {
     }
 
     function confirmQuit() {
+        if (Chiaki.window.kioskLocked) {
+            requestKioskUnlock();
+            return;
+        }
         root.showConfirmDialog(qsTr("Quit"), qsTr("Are you sure you want to quit?"), () => Qt.quit());
+    }
+
+    function requestKioskUnlock() {
+        if (kioskUnlockDialog.visible)
+            return;
+        kioskControlsAuthorized = false;
+        kioskUnlockAttempted = false;
+        kioskPinField.text = "";
+        kioskUnlockDialog.open();
+    }
+
+    function closeKioskUnlock() {
+        kioskControlsAuthorized = false;
+        kioskUnlockAttempted = false;
+        kioskPinField.text = "";
+        kioskUnlockDialog.close();
     }
 
     function showStreamView() {
@@ -295,6 +318,154 @@ Item {
                 from: 1.0
                 to: 0.0
                 duration: 200
+            }
+        }
+    }
+
+    Dialog {
+        id: kioskUnlockDialog
+        parent: Overlay.overlay
+        x: Math.round((root.width - width) / 2)
+        y: Math.round((root.height - height) / 2)
+        width: Math.min(root.width - 80, 560)
+        title: root.kioskControlsAuthorized ? qsTr("System Controls") : qsTr("Authorized Access")
+        modal: true
+        closePolicy: Popup.NoAutoClose
+        Material.roundedScale: Material.MediumScale
+
+        onOpened: {
+            if (!root.kioskDialogInputGrabbed) {
+                root.grabInput(root.kioskControlsAuthorized ? kioskReturnButton : kioskPinField);
+                root.kioskDialogInputGrabbed = true;
+            }
+            if (!root.kioskControlsAuthorized)
+                kioskPinField.forceActiveFocus(Qt.TabFocusReason);
+        }
+
+        onClosed: {
+            if (root.kioskDialogInputGrabbed) {
+                root.releaseInput();
+                root.kioskDialogInputGrabbed = false;
+            }
+        }
+
+        ColumnLayout {
+            width: kioskUnlockDialog.width - 48
+            spacing: 14
+
+            Label {
+                Layout.fillWidth: true
+                visible: !root.kioskControlsAuthorized
+                text: qsTr("Enter the management access code to unlock system controls.")
+                color: "#cbd5e1"
+                wrapMode: Text.WordWrap
+            }
+
+            TextField {
+                id: kioskPinField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 48
+                visible: !root.kioskControlsAuthorized
+                enabled: !Chiaki.rental.adminBusy
+                placeholderText: qsTr("Access code")
+                echoMode: TextInput.Password
+                inputMethodHints: Qt.ImhDigitsOnly
+                onAccepted: kioskVerifyButton.clicked()
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: !root.kioskControlsAuthorized
+                    && root.kioskUnlockAttempted
+                    && !Chiaki.rental.adminBusy
+                    && Chiaki.rental.adminError.length > 0
+                text: qsTr("Incorrect code. NXGS remains locked.")
+                color: "#fb7185"
+                wrapMode: Text.WordWrap
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: !root.kioskControlsAuthorized
+                spacing: 10
+
+                Button {
+                    Layout.fillWidth: true
+                    enabled: !Chiaki.rental.adminBusy
+                    text: qsTr("Cancel")
+                    onClicked: root.closeKioskUnlock()
+                }
+
+                Button {
+                    id: kioskVerifyButton
+                    Layout.fillWidth: true
+                    enabled: !Chiaki.rental.adminBusy && kioskPinField.text.length > 0
+                    text: Chiaki.rental.adminBusy ? qsTr("Checking...") : qsTr("Unlock")
+                    Material.background: "#00a7ff"
+                    onClicked: {
+                        if (!enabled)
+                            return;
+                        root.kioskUnlockAttempted = true;
+                        Chiaki.rental.verifyControllerPin(kioskPinField.text);
+                    }
+                }
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                visible: root.kioskControlsAuthorized
+                columns: width > 440 ? 2 : 1
+                columnSpacing: 10
+                rowSpacing: 10
+
+                Button {
+                    Layout.fillWidth: true
+                    text: qsTr("Minimize App")
+                    onClicked: {
+                        root.closeKioskUnlock();
+                        Chiaki.window.minimizeForAdmin();
+                    }
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    text: qsTr("Exit Full Screen")
+                    onClicked: {
+                        root.closeKioskUnlock();
+                        Chiaki.window.exitKioskMode();
+                    }
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    text: qsTr("Open Management")
+                    onClicked: {
+                        root.closeKioskUnlock();
+                        root.showControllerAdmin();
+                    }
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    text: qsTr("Close NXGS")
+                    onClicked: {
+                        root.closeKioskUnlock();
+                        Chiaki.window.closeForAdmin();
+                    }
+                }
+
+                Button {
+                    id: kioskReturnButton
+                    Layout.columnSpan: parent.columns
+                    Layout.fillWidth: true
+                    text: qsTr("Return to Locked Mode")
+                    Material.background: "#00a7ff"
+                    onClicked: {
+                        Chiaki.rental.controllerAdminLogout();
+                        root.closeKioskUnlock();
+                        Chiaki.window.enterKioskMode();
+                    }
+                }
             }
         }
     }
@@ -671,8 +842,23 @@ Item {
             if (Chiaki.rental.paymentHtml.length > 0)
                 rentalPaymentDialog.open();
         }
+        function onControllerPinVerified() {
+            if (!kioskUnlockDialog.visible)
+                return;
+            root.kioskControlsAuthorized = true;
+            root.kioskUnlockAttempted = false;
+            kioskPinField.text = "";
+            kioskReturnButton.forceActiveFocus(Qt.TabFocusReason);
+        }
     }
 
+    Connections {
+        target: Chiaki.window
+
+        function onKioskUnlockRequested() {
+            root.requestKioskUnlock();
+        }
+    }
     Component {
         id: rentalHomeViewComponent
         RentalHomeView { }
