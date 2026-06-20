@@ -50,6 +50,15 @@ Item {
         }
         return "image://svg/button-%1#%2".arg(type).arg(name);
     }
+
+    function hasCustomerController() {
+        for (let index = 0; index < Chiaki.controllers.length; ++index) {
+            const controller = Chiaki.controllers[index];
+            if (!controller.handheld && !controller.steamVirtual)
+                return true;
+        }
+        return false;
+    }
     function grabInput(item) {
         Chiaki.window.grabInput();
         restoreFocusItems.push(Window.window.activeFocusItem);
@@ -949,8 +958,11 @@ Item {
         target: Chiaki.rental
 
         function onPaymentHtmlChanged() {
-            if (Chiaki.rental.paymentHtml.length > 0)
+            if (Chiaki.rental.paymentHtml.length > 0
+                    && root.hasCustomerController())
                 rentalPaymentDialog.open();
+            else if (Chiaki.rental.paymentHtml.length > 0)
+                Chiaki.rental.clearPayment();
         }
         function onControllerPinVerified() {
             if (!kioskUnlockDialog.visible || !root.kioskUnlockAttempted)
@@ -959,6 +971,15 @@ Item {
             root.kioskUnlockAttempted = false;
             kioskPinField.text = "";
             kioskReturnButton.forceActiveFocus(Qt.TabFocusReason);
+        }
+    }
+
+    Connections {
+        target: Chiaki
+
+        function onControllersChanged() {
+            if (!root.hasCustomerController() && rentalPaymentDialog.visible)
+                rentalPaymentDialog.reject();
         }
     }
 

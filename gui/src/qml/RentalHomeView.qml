@@ -13,6 +13,8 @@ Pane {
     property var availablePlans: []
     property var connectedControllers: []
     property int focusedControllerIndex: 0
+    readonly property bool hasConnectedController:
+        connectedControllers.length > 0
 
     StackView.onActivated: Qt.callLater(focusDefaultItem)
     Keys.onEscapePressed: (event) => event.accepted = true
@@ -78,7 +80,7 @@ Pane {
 
     function focusDefaultItem() {
         if (!focusControllerCard(focusedControllerIndex))
-            playButton.forceActiveFocus(Qt.TabFocusReason);
+            rentalHome.forceActiveFocus(Qt.TabFocusReason);
     }
 
     function openCustomerDialog(dialog) {
@@ -115,6 +117,8 @@ Pane {
             return qsTr("Loading store assignment...");
         if (rentalHome.availablePlans.length === 0)
             return qsTr("No play plans are available for this system.");
+        if (!rentalHome.hasConnectedController)
+            return qsTr("Connect a controller to continue.");
         if (!Chiaki.rental.availabilityChecked || Chiaki.rental.state === "checking_availability")
             return qsTr("Checking console availability...");
         if (!Chiaki.rental.consoleAvailable)
@@ -171,6 +175,7 @@ Pane {
             Layout.preferredWidth: 320
             Layout.preferredHeight: 120
             enabled: Chiaki.rental.configured
+                && rentalHome.hasConnectedController
                 && !Chiaki.rental.busy
                 && Chiaki.rental.state !== "checking_availability"
                 && Chiaki.rental.selectedStoreId.length > 0
@@ -201,7 +206,7 @@ Pane {
             }
 
             onClicked: {
-                if (!enabled)
+                if (!enabled || !rentalHome.hasConnectedController)
                     return;
                 if (Chiaki.rental.availabilityChecked && !Chiaki.rental.consoleAvailable) {
                     rentalHome.openCustomerDialog(noConsoleDialog);
@@ -318,9 +323,55 @@ Pane {
             }
         }
 
+        Rectangle {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: 360
+            Layout.preferredHeight: 142
+            visible: !rentalHome.hasConnectedController
+            radius: 12
+            color: "#0f1724"
+            border.width: 1
+            border.color: "#263247"
+
+            ColumnLayout {
+                anchors {
+                    fill: parent
+                    margins: 18
+                }
+                spacing: 8
+
+                Image {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: 54
+                    Layout.preferredHeight: 34
+                    source: "qrc:/icons/dualsense-controller.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: 0.55
+                }
+
+                Label {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: qsTr("No controller connected")
+                    color: "#f8fafc"
+                    font.bold: true
+                    font.pixelSize: 17
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Connect or turn on a controller to start playing.")
+                    color: "#94a3b8"
+                    font.pixelSize: 14
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            visible: rentalHome.connectedControllers.length > 0
+            visible: rentalHome.hasConnectedController
             spacing: 28
 
             RowLayout {
@@ -578,6 +629,8 @@ Pane {
 
         function onControllersChanged() {
             rentalHome.updateConnectedControllers();
+            if (!rentalHome.hasConnectedController && durationDialog.visible)
+                durationDialog.reject();
         }
 
         function onHostsChanged() {
