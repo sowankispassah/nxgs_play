@@ -14,6 +14,7 @@ Item {
     property bool kioskControlsAuthorized: false
     property bool kioskUnlockAttempted: false
     property bool kioskDialogInputGrabbed: false
+    property bool managementViewActive: false
     Material.theme: Material.Dark
     Material.accent: "#00a7ff"
 
@@ -147,14 +148,22 @@ Item {
     }
 
     function showRentalHome() {
+        managementViewActive = false;
         Chiaki.window.setKioskManagementMode(false);
         if (stack.depth > 1)
             stack.pop(stack.get(0), StackView.Immediate);
         stack.replace(stack.get(0), rentalHomeViewComponent, {}, StackView.Immediate);
     }
     function showControllerAdmin() {
+        managementViewActive = true;
         Chiaki.window.setKioskManagementMode(Chiaki.rental.controllerAdminAuthenticated);
         stack.push(controllerAdminViewComponent);
+    }
+
+    function restoreKioskFullscreen() {
+        Chiaki.window.enterKioskMode();
+        if (managementViewActive && Chiaki.rental.controllerAdminAuthenticated)
+            Chiaki.window.setKioskManagementMode(true);
     }
 
     function goBack() {
@@ -325,6 +334,65 @@ Item {
                 from: 1.0
                 to: 0.0
                 duration: 200
+            }
+        }
+    }
+
+    ToolButton {
+        id: restoreFullscreenButton
+        anchors {
+            top: parent.top
+            right: parent.right
+            margins: 16
+        }
+        z: 1000
+        width: 52
+        height: 52
+        visible: !Chiaki.window.kioskLocked
+        enabled: visible
+        focusPolicy: Qt.NoFocus
+        ToolTip.visible: hovered
+        ToolTip.text: qsTr("Return to Full Screen")
+        onClicked: root.restoreKioskFullscreen()
+
+        contentItem: Canvas {
+            id: lockIcon
+            antialiasing: true
+
+            onPaint: {
+                const ctx = getContext("2d");
+                ctx.reset();
+                ctx.strokeStyle = restoreFullscreenButton.hovered ? "#00a7ff" : "#ffffff";
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.lineWidth = 2.4;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+
+                const centerX = width / 2;
+                const bodyWidth = 21;
+                const bodyHeight = 17;
+                const bodyX = centerX - bodyWidth / 2;
+                const bodyY = height / 2;
+
+                ctx.beginPath();
+                ctx.arc(centerX, bodyY, 7, Math.PI, 0, false);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.roundedRect(bodyX, bodyY, bodyWidth, bodyHeight, 3, 3);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(centerX, bodyY + 7, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(centerX - 1, bodyY + 8, 2, 4);
+            }
+
+            Connections {
+                target: restoreFullscreenButton
+                function onHoveredChanged() {
+                    lockIcon.requestPaint();
+                }
             }
         }
     }
