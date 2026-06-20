@@ -237,7 +237,7 @@ Pane {
                         activeFocusOnTab: true
                         color: "#0f1724"
                         border.width: activeFocus ? 3 : 1
-                        border.color: activeFocus || activityGlow.opacity > 0
+                        border.color: activeFocus
                             ? "#00a7ff"
                             : "#263247"
                         scale: activeFocus ? 1.035 : 1.0
@@ -264,17 +264,6 @@ Pane {
                         }
                         Keys.onReturnPressed: (event) => event.accepted = true
 
-                        Rectangle {
-                            id: activityGlow
-                            anchors.fill: parent
-                            anchors.margins: -1
-                            radius: parent.radius + 1
-                            color: "transparent"
-                            border.width: 2
-                            border.color: "#00a7ff"
-                            opacity: 0
-                        }
-
                         Item {
                             id: controllerIconFrame
                             anchors {
@@ -286,7 +275,6 @@ Pane {
                             height: 42
 
                             Image {
-                                id: controllerIcon
                                 x: 2
                                 y: 1
                                 width: 60
@@ -315,39 +303,10 @@ Pane {
                             elide: Text.ElideRight
                         }
 
-                        SequentialAnimation {
-                            id: controllerActivityAnimation
-                            alwaysRunToEnd: false
-
-                            ScriptAction {
-                                script: {
-                                    controllerIcon.x = 2;
-                                    activityGlow.opacity = 0;
-                                }
-                            }
-
-                            ParallelAnimation {
-                                SequentialAnimation {
-                                    NumberAnimation { target: controllerIcon; property: "x"; to: -2; duration: 28; easing.type: Easing.OutQuad }
-                                    NumberAnimation { target: controllerIcon; property: "x"; to: 6; duration: 36; easing.type: Easing.InOutQuad }
-                                    NumberAnimation { target: controllerIcon; property: "x"; to: -1; duration: 36; easing.type: Easing.InOutQuad }
-                                    NumberAnimation { target: controllerIcon; property: "x"; to: 5; duration: 32; easing.type: Easing.InOutQuad }
-                                    NumberAnimation { target: controllerIcon; property: "x"; to: 2; duration: 38; easing.type: Easing.OutQuad }
-                                }
-
-                                SequentialAnimation {
-                                    NumberAnimation { target: activityGlow; property: "opacity"; to: 0.9; duration: 70; easing.type: Easing.OutQuad }
-                                    PauseAnimation { duration: 50 }
-                                    NumberAnimation { target: activityGlow; property: "opacity"; to: 0; duration: 130; easing.type: Easing.InQuad }
-                                }
-                            }
-                        }
-
                         Connections {
                             target: modelData
 
                             function onInputActivity() {
-                                controllerActivityAnimation.restart();
                                 if (rentalHome.controllerCardHasFocus()
                                         || Window.window.activeFocusItem === rentalHome) {
                                     rentalHome.focusControllerCard(controllerCard.index);
