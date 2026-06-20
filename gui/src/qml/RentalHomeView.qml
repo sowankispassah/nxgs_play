@@ -123,56 +123,115 @@ Pane {
             }
         }
 
-        Rectangle {
+        Item {
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: Math.min(760, rentalHome.width - 80)
-            Layout.preferredHeight: controllerDisplayRow.implicitHeight + 32
+            Layout.preferredWidth: Math.min(720, rentalHome.width - 80)
+            Layout.preferredHeight: controllerDisplayRow.implicitHeight
             visible: rentalHome.connectedControllers.length > 0
-            radius: 12
-            color: "#0f1724"
-            border.width: 1
-            border.color: "#263247"
 
             Row {
                 id: controllerDisplayRow
                 anchors.centerIn: parent
-                spacing: 24
+                spacing: 18
 
                 Repeater {
                     model: rentalHome.connectedControllers
 
-                    Column {
-                        width: rentalHome.connectedControllers.length <= 2
-                            ? 210
-                            : Math.max(130, Math.min(180,
-                                (Math.min(720, rentalHome.width - 120)
-                                    - (rentalHome.connectedControllers.length - 1) * controllerDisplayRow.spacing)
-                                / rentalHome.connectedControllers.length))
-                        spacing: 8
+                    Rectangle {
+                        width: 172
+                        height: 116
+                        radius: 12
+                        color: "#0f1724"
+                        border.width: 1
+                        border.color: activityGlow.opacity > 0
+                            ? "#00a7ff"
+                            : "#263247"
 
-                        Image {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: Math.min(150, parent.width)
-                            height: 92
-                            source: "qrc:/icons/dualsense-controller.svg"
-                            fillMode: Image.PreserveAspectFit
-                            sourceSize.width: 320
-                            sourceSize.height: 190
+                        Rectangle {
+                            id: activityGlow
+                            anchors.fill: parent
+                            anchors.margins: -1
+                            radius: parent.radius + 1
+                            color: "transparent"
+                            border.width: 2
+                            border.color: "#00a7ff"
+                            opacity: 0
+                        }
+
+                        Item {
+                            id: controllerIconFrame
+                            anchors {
+                                horizontalCenter: parent.horizontalCenter
+                                top: parent.top
+                                topMargin: 14
+                            }
+                            width: 64
+                            height: 42
+
+                            Image {
+                                id: controllerIcon
+                                x: 2
+                                y: 1
+                                width: 60
+                                height: 38
+                                source: "qrc:/icons/dualsense-controller.svg"
+                                fillMode: Image.PreserveAspectFit
+                                sourceSize.width: 320
+                                sourceSize.height: 190
+                            }
                         }
 
                         Label {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: 10
+                            width: parent.width - 20
                             height: 44
                             text: modelData.name
                             color: "#e5e7eb"
-                            font.pixelSize: 14
+                            font.pixelSize: 13
                             font.bold: true
                             horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignTop
+                            verticalAlignment: Text.AlignVCenter
                             wrapMode: Text.Wrap
                             maximumLineCount: 2
                             elide: Text.ElideRight
+                        }
+
+                        SequentialAnimation {
+                            id: controllerActivityAnimation
+                            alwaysRunToEnd: false
+
+                            ScriptAction {
+                                script: {
+                                    controllerIcon.x = 2;
+                                    activityGlow.opacity = 0;
+                                }
+                            }
+
+                            ParallelAnimation {
+                                SequentialAnimation {
+                                    NumberAnimation { target: controllerIcon; property: "x"; to: -2; duration: 28; easing.type: Easing.OutQuad }
+                                    NumberAnimation { target: controllerIcon; property: "x"; to: 6; duration: 36; easing.type: Easing.InOutQuad }
+                                    NumberAnimation { target: controllerIcon; property: "x"; to: -1; duration: 36; easing.type: Easing.InOutQuad }
+                                    NumberAnimation { target: controllerIcon; property: "x"; to: 5; duration: 32; easing.type: Easing.InOutQuad }
+                                    NumberAnimation { target: controllerIcon; property: "x"; to: 2; duration: 38; easing.type: Easing.OutQuad }
+                                }
+
+                                SequentialAnimation {
+                                    NumberAnimation { target: activityGlow; property: "opacity"; to: 0.9; duration: 70; easing.type: Easing.OutQuad }
+                                    PauseAnimation { duration: 50 }
+                                    NumberAnimation { target: activityGlow; property: "opacity"; to: 0; duration: 130; easing.type: Easing.InQuad }
+                                }
+                            }
+                        }
+
+                        Connections {
+                            target: modelData
+
+                            function onInputActivity() {
+                                controllerActivityAnimation.restart();
+                            }
                         }
                     }
                 }

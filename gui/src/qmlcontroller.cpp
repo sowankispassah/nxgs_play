@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QStyleHints>
 #include <QGuiApplication>
+#include <cstdlib>
 
 static QVector<QPair<uint32_t, Qt::Key>> key_map = {
     { CHIAKI_CONTROLLER_BUTTON_DPAD_UP, Qt::Key_Up },
@@ -41,6 +42,38 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
     connect(controller, &Controller::StateChanged, this, [this]() {
         auto state = controller->GetState();
         auto buttons = state.buttons;
+        const auto stick_moved = [](int16_t current, int16_t previous) {
+            return std::abs(static_cast<int>(current)) >= 5000
+                && std::abs(static_cast<int>(current) - static_cast<int>(previous)) >= 2048;
+        };
+        const bool controller_activity =
+            state.buttons != activity_buttons
+            || std::abs(static_cast<int>(state.l2_state) - static_cast<int>(activity_l2)) >= 6
+            || std::abs(static_cast<int>(state.r2_state) - static_cast<int>(activity_r2)) >= 6
+            || stick_moved(state.left_x, activity_left_x)
+            || stick_moved(state.left_y, activity_left_y)
+            || stick_moved(state.right_x, activity_right_x)
+            || stick_moved(state.right_y, activity_right_y);
+
+        if (controller_activity) {
+            activity_buttons = state.buttons;
+            activity_l2 = state.l2_state;
+            activity_r2 = state.r2_state;
+            activity_left_x = state.left_x;
+            activity_left_y = state.left_y;
+            activity_right_x = state.right_x;
+            activity_right_y = state.right_y;
+            emit inputActivity();
+        }
+
+        if (std::abs(static_cast<int>(state.left_x)) < 5000)
+            activity_left_x = state.left_x;
+        if (std::abs(static_cast<int>(state.left_y)) < 5000)
+            activity_left_y = state.left_y;
+        if (std::abs(static_cast<int>(state.right_x)) < 5000)
+            activity_right_x = state.right_x;
+        if (std::abs(static_cast<int>(state.right_y)) < 5000)
+            activity_right_y = state.right_y;
 
         if (state.left_x > 30000)
             buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT;

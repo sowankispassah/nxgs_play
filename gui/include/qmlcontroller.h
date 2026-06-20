@@ -28,12 +28,22 @@ public:
     QString GetGUID() const;
     QString GetVIDPID() const;
 
+signals:
+    void inputActivity();
+
 private:
     void sendKey(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
     QObject *target = {};
     uint32_t escape_shortcut = 0;
     uint32_t old_buttons = 0;
+    uint32_t activity_buttons = 0;
+    uint8_t activity_l2 = 0;
+    uint8_t activity_r2 = 0;
+    int16_t activity_left_x = 0;
+    int16_t activity_left_y = 0;
+    int16_t activity_right_x = 0;
+    int16_t activity_right_y = 0;
     Controller *controller = {};
     QTimer *repeat_timer = {};
     int repeat_running = 0;
