@@ -9,11 +9,13 @@ Pane {
     id: rentalHome
     padding: 0
     property var availablePlans: []
+    property var connectedControllers: []
 
     StackView.onActivated: playButton.forceActiveFocus(Qt.TabFocusReason)
     Keys.onEscapePressed: root.confirmQuit()
 
     Component.onCompleted: {
+        updateConnectedControllers();
         if (Chiaki.rental.configured) {
             Chiaki.rental.loadPricing();
             Chiaki.rental.checkAvailability(Chiaki.discoveredConsoleCandidates());
@@ -22,6 +24,16 @@ Pane {
 
     function updateAvailablePlans() {
         availablePlans = Chiaki.rental.availableTimePlansForStore(Chiaki.rental.selectedStoreId);
+    }
+
+    function updateConnectedControllers() {
+        const controllers = [];
+        for (let index = 0; index < Chiaki.controllers.length; ++index) {
+            const controller = Chiaki.controllers[index];
+            if (!controller.handheld && !controller.steamVirtual)
+                controllers.push(controller);
+        }
+        connectedControllers = controllers;
     }
 
     function statusText() {
@@ -108,6 +120,85 @@ Pane {
                     return;
                 }
                 Chiaki.rental.reserveConsole(Chiaki.discoveredConsoleCandidates());
+            }
+        }
+
+        Rectangle {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: Math.min(520, rentalHome.width - 80)
+            Layout.preferredHeight: controllerListColumn.implicitHeight + 28
+            visible: rentalHome.connectedControllers.length > 0
+            radius: 12
+            color: "#111827"
+            border.width: 1
+            border.color: "#263247"
+
+            ColumnLayout {
+                id: controllerListColumn
+                anchors {
+                    left: parent.left
+                    right: parent.right
+                    top: parent.top
+                    margins: 14
+                }
+                spacing: 10
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Rectangle {
+                        Layout.preferredWidth: 10
+                        Layout.preferredHeight: 10
+                        radius: 5
+                        color: "#22c55e"
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Connected Controllers")
+                        color: "#e5e7eb"
+                        font.bold: true
+                        font.pixelSize: 16
+                    }
+
+                    Label {
+                        text: String(rentalHome.connectedControllers.length)
+                        color: "#8f9bb3"
+                        font.pixelSize: 14
+                    }
+                }
+
+                Repeater {
+                    model: rentalHome.connectedControllers
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        Label {
+                            Layout.preferredWidth: 24
+                            text: String(index + 1)
+                            color: "#00a7ff"
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: modelData.name
+                            color: "#cbd5e1"
+                            elide: Text.ElideRight
+                            font.pixelSize: 15
+                        }
+
+                        Label {
+                            text: qsTr("Connected")
+                            color: "#22c55e"
+                            font.pixelSize: 13
+                        }
+                    }
+                }
             }
         }
 
@@ -254,6 +345,10 @@ Pane {
 
     Connections {
         target: Chiaki
+
+        function onControllersChanged() {
+            rentalHome.updateConnectedControllers();
+        }
 
         function onHostsChanged() {
             if (Chiaki.rental.configured && !Chiaki.rental.busy)

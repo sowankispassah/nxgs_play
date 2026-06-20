@@ -103,6 +103,12 @@ bool QmlController::isDualSenseEdge() const
     return controller->IsDualSenseEdge();
 }
 
+QString QmlController::name() const
+{
+    const QString controller_name = controller->GetType().trimmed();
+    return controller_name.isEmpty() ? tr("Game Controller") : controller_name;
+}
+
 QString QmlController::GetGUID() const
 {
     return controller->GetGUIDString();
