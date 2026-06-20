@@ -85,10 +85,6 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
             || static_cast<int>(state.r2_state) - static_cast<int>(activity_r2) >= 6
             || stick_moved(state.right_x, activity_right_x)
             || stick_moved(state.right_y, activity_right_y);
-        const bool left_stick_activated =
-            stick_moved(state.left_x, activity_left_x)
-            || stick_moved(state.left_y, activity_left_y);
-
         if (std::abs(static_cast<int>(state.left_x)) < 5000)
             activity_left_x = state.left_x;
         if (std::abs(static_cast<int>(state.left_y)) < 5000)
@@ -178,11 +174,11 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
             activity_right_y = state.right_y;
 
             if (streaming
-                || unused_button_activated
-                || trigger_or_right_stick_activated
-                || ((mapped_button_activated || left_stick_activated)
-                    && (!customer_action_attempted
-                        || !customer_action_handled))) {
+                || (customer_action_attempted
+                    ? !customer_action_handled
+                    : unused_button_activated
+                        || trigger_or_right_stick_activated
+                        || mapped_button_activated)) {
                 emit inputActivity();
             }
         }
