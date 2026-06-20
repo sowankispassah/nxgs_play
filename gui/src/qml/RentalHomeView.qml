@@ -125,77 +125,54 @@ Pane {
 
         Rectangle {
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: Math.min(520, rentalHome.width - 80)
-            Layout.preferredHeight: controllerListColumn.implicitHeight + 28
+            Layout.preferredWidth: Math.min(760, rentalHome.width - 80)
+            Layout.preferredHeight: controllerDisplayRow.implicitHeight + 32
             visible: rentalHome.connectedControllers.length > 0
             radius: 12
-            color: "#111827"
+            color: "#0f1724"
             border.width: 1
             border.color: "#263247"
 
-            ColumnLayout {
-                id: controllerListColumn
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    top: parent.top
-                    margins: 14
-                }
-                spacing: 10
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.preferredWidth: 10
-                        Layout.preferredHeight: 10
-                        radius: 5
-                        color: "#22c55e"
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("Connected Controllers")
-                        color: "#e5e7eb"
-                        font.bold: true
-                        font.pixelSize: 16
-                    }
-
-                    Label {
-                        text: String(rentalHome.connectedControllers.length)
-                        color: "#8f9bb3"
-                        font.pixelSize: 14
-                    }
-                }
+            Row {
+                id: controllerDisplayRow
+                anchors.centerIn: parent
+                spacing: 24
 
                 Repeater {
                     model: rentalHome.connectedControllers
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
+                    Column {
+                        width: rentalHome.connectedControllers.length <= 2
+                            ? 210
+                            : Math.max(130, Math.min(180,
+                                (Math.min(720, rentalHome.width - 120)
+                                    - (rentalHome.connectedControllers.length - 1) * controllerDisplayRow.spacing)
+                                / rentalHome.connectedControllers.length))
+                        spacing: 8
+
+                        Image {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: Math.min(150, parent.width)
+                            height: 92
+                            source: "qrc:/icons/dualsense-controller.svg"
+                            fillMode: Image.PreserveAspectFit
+                            sourceSize.width: 320
+                            sourceSize.height: 190
+                        }
 
                         Label {
-                            Layout.preferredWidth: 24
-                            text: String(index + 1)
-                            color: "#00a7ff"
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width
+                            height: 44
+                            text: modelData.name
+                            color: "#e5e7eb"
+                            font.pixelSize: 14
                             font.bold: true
                             horizontalAlignment: Text.AlignHCenter
-                        }
-
-                        Label {
-                            Layout.fillWidth: true
-                            text: modelData.name
-                            color: "#cbd5e1"
+                            verticalAlignment: Text.AlignTop
+                            wrapMode: Text.Wrap
+                            maximumLineCount: 2
                             elide: Text.ElideRight
-                            font.pixelSize: 15
-                        }
-
-                        Label {
-                            text: qsTr("Connected")
-                            color: "#22c55e"
-                            font.pixelSize: 13
                         }
                     }
                 }
