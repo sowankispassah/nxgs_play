@@ -8,7 +8,16 @@
 #include <QGuiApplication>
 #include <cstdlib>
 
-static QVector<QPair<uint32_t, Qt::Key>> key_map = {
+static const QVector<QPair<uint32_t, Qt::Key>> customer_navigation_key_map = {
+    { CHIAKI_CONTROLLER_BUTTON_DPAD_UP, Qt::Key_Up },
+    { CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN, Qt::Key_Down },
+    { CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT, Qt::Key_Left },
+    { CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT, Qt::Key_Right },
+    { CHIAKI_CONTROLLER_BUTTON_CROSS, Qt::Key_Return },
+    { CHIAKI_CONTROLLER_BUTTON_MOON, Qt::Key_Escape },
+};
+
+static const QVector<QPair<uint32_t, Qt::Key>> streaming_key_map = {
     { CHIAKI_CONTROLLER_BUTTON_DPAD_UP, Qt::Key_Up },
     { CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN, Qt::Key_Down },
     { CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT, Qt::Key_Left },
@@ -75,32 +84,47 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
         if (std::abs(static_cast<int>(state.right_y)) < 5000)
             activity_right_y = state.right_y;
 
-        if (state.left_x > 30000)
-            buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT;
-        else if (state.left_x < -30000)
-            buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT;
+        const bool streaming = target && target->property("hasVideo").toBool();
+        const auto &active_key_map = streaming ? streaming_key_map : customer_navigation_key_map;
 
-        if (state.left_y > 30000)
-            buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN;
-        else if (state.left_y < -30000)
-            buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_UP;
+        if (streaming) {
+            if (state.left_x > 30000)
+                buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT;
+            else if (state.left_x < -30000)
+                buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT;
 
-        for (auto &k : std::as_const(key_map)) {
+            if (state.left_y > 30000)
+                buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN;
+            else if (state.left_y < -30000)
+                buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_UP;
+        }
+
+        for (const auto &k : active_key_map) {
             const bool pressed = buttons & k.first;
             const bool old_pressed = old_buttons & k.first;
             if (pressed && !old_pressed) {
                 pressed_key = k.second;
                 sendKey(pressed_key);
                 repeat_running = 0;
-                repeat_timer->start(250);
+                if (pressed_key == Qt::Key_Up
+                    || pressed_key == Qt::Key_Down
+                    || pressed_key == Qt::Key_Left
+                    || pressed_key == Qt::Key_Right) {
+                    repeat_timer->start(300);
+                } else {
+                    repeat_timer->stop();
+                }
             } else if (old_pressed && !pressed && pressed_key == k.second) {
                 repeat_timer->stop();
                 repeat_running = 1;
             }
         }
 
-        if ((old_buttons & escape_shortcut) == escape_shortcut && (buttons & escape_shortcut) != escape_shortcut)
+        if (streaming
+            && (old_buttons & escape_shortcut) == escape_shortcut
+            && (buttons & escape_shortcut) != escape_shortcut) {
             sendKey(Qt::Key_O, Qt::ControlModifier);
+        }
 
         old_buttons = buttons;
     });

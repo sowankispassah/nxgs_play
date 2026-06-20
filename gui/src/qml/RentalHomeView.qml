@@ -5,6 +5,8 @@ import QtQuick.Controls.Material
 
 import com.nxgsstudio.nxgsgaming
 
+import "controls" as C
+
 Pane {
     id: rentalHome
     padding: 0
@@ -12,7 +14,7 @@ Pane {
     property var connectedControllers: []
 
     StackView.onActivated: playButton.forceActiveFocus(Qt.TabFocusReason)
-    Keys.onEscapePressed: root.confirmQuit()
+    Keys.onEscapePressed: (event) => event.accepted = true
 
     Component.onCompleted: {
         updateConnectedControllers();
@@ -93,8 +95,10 @@ Pane {
             elide: Text.ElideRight
         }
 
-        Button {
+        C.Button {
             id: playButton
+            firstInFocusChain: true
+            lastInFocusChain: true
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 320
             Layout.preferredHeight: 120
@@ -109,8 +113,25 @@ Pane {
                 : Chiaki.rental.state === "checking_availability" ? qsTr("Checking...") : qsTr("Play")
             font.bold: true
             font.pixelSize: 40
+            scale: activeFocus ? 1.035 : 1.0
             Material.background: Material.accent
             Material.roundedScale: Material.SmallScale
+            Behavior on scale {
+                NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -6
+                radius: 12
+                color: "transparent"
+                border.width: playButton.activeFocus ? 3 : 0
+                border.color: "#7dd3fc"
+                opacity: playButton.activeFocus ? 1 : 0
+                z: -1
+                Behavior on opacity { NumberAnimation { duration: 120 } }
+            }
+
             onClicked: {
                 if (!enabled)
                     return;
@@ -238,6 +259,46 @@ Pane {
             }
         }
 
+        RowLayout {
+            Layout.alignment: Qt.AlignHCenter
+            visible: rentalHome.connectedControllers.length > 0
+            spacing: 28
+
+            RowLayout {
+                spacing: 8
+
+                Image {
+                    Layout.preferredWidth: 24
+                    Layout.preferredHeight: 24
+                    sourceSize: Qt.size(width, height)
+                    source: root.controllerButton("cross")
+                }
+
+                Label {
+                    text: qsTr("Select / OK")
+                    color: "#cbd5e1"
+                    font.pixelSize: 14
+                }
+            }
+
+            RowLayout {
+                spacing: 8
+
+                Image {
+                    Layout.preferredWidth: 24
+                    Layout.preferredHeight: 24
+                    sourceSize: Qt.size(width, height)
+                    source: root.controllerButton("moon")
+                }
+
+                Label {
+                    text: qsTr("Back")
+                    color: "#cbd5e1"
+                    font.pixelSize: 14
+                }
+            }
+        }
+
         Label {
             Layout.alignment: Qt.AlignHCenter
             horizontalAlignment: Text.AlignHCenter
@@ -268,7 +329,11 @@ Pane {
         modal: true
         closePolicy: Popup.NoAutoClose
         standardButtons: Dialog.Cancel
-        onOpened: paymentStarted = false
+        onOpened: {
+            paymentStarted = false;
+            if (planRepeater.count > 0)
+                planRepeater.itemAt(0).forceActiveFocus(Qt.TabFocusReason);
+        }
         onRejected: {
             if (!paymentStarted)
                 Chiaki.rental.releaseReservation();
@@ -279,11 +344,14 @@ Pane {
             spacing: 16
 
             Repeater {
+                id: planRepeater
                 model: rentalHome.availablePlans
 
-                Button {
+                C.Button {
                     Layout.preferredWidth: 360
                     Layout.preferredHeight: 64
+                    firstInFocusChain: index === 0
+                    lastInFocusChain: index === planRepeater.count - 1
                     enabled: !Chiaki.rental.busy
                     text: Chiaki.rental.busy
                         ? qsTr("Creating order...")
@@ -308,6 +376,12 @@ Pane {
                 opacity: 0.75
             }
         }
+
+        Shortcut {
+            sequence: StandardKey.Cancel
+            enabled: durationDialog.visible
+            onActivated: durationDialog.reject()
+        }
     }
 
     Dialog {
@@ -325,6 +399,12 @@ Pane {
             wrapMode: Text.WordWrap
             width: 360
         }
+
+        Shortcut {
+            sequence: StandardKey.Cancel
+            enabled: noConsoleDialog.visible
+            onActivated: noConsoleDialog.close()
+        }
     }
 
     Dialog {
@@ -341,6 +421,12 @@ Pane {
             text: Chiaki.rental.error
             wrapMode: Text.WordWrap
             width: 420
+        }
+
+        Shortcut {
+            sequence: StandardKey.Cancel
+            enabled: serviceErrorDialog.visible
+            onActivated: serviceErrorDialog.close()
         }
     }
 

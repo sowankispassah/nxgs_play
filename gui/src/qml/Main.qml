@@ -7,6 +7,7 @@ import com.nxgsstudio.nxgsgaming
 
 Item {
     id: root
+    focus: true
     property list<Item> restoreFocusItems
     property bool initialAsk: false
     readonly property bool preferSeparateStreamSettingsWindows: Chiaki.window.runtimeRendererBackend === 1 && Chiaki.session
@@ -17,6 +18,25 @@ Item {
     property bool managementViewActive: false
     Material.theme: Material.Dark
     Material.accent: "#00a7ff"
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => {
+        if (event.accepted)
+            return;
+
+        const forward = event.key === Qt.Key_Down || event.key === Qt.Key_Right;
+        const backward = event.key === Qt.Key_Up || event.key === Qt.Key_Left;
+        if (!forward && !backward)
+            return;
+
+        const current = Window.window.activeFocusItem;
+        if (!current)
+            return;
+        const next = current.nextItemInFocusChain(forward);
+        if (next && next !== current) {
+            next.forceActiveFocus(Qt.TabFocusReason);
+            event.accepted = true;
+        }
+    }
 
     function controllerButton(name) {
         let type = "deck";
@@ -422,6 +442,12 @@ Item {
                 root.releaseInput();
                 root.kioskDialogInputGrabbed = false;
             }
+        }
+
+        Shortcut {
+            sequence: StandardKey.Cancel
+            enabled: kioskUnlockDialog.visible
+            onActivated: root.closeKioskUnlock()
         }
 
         ColumnLayout {
@@ -850,6 +876,12 @@ Item {
                 web.destroy();
                 web = null;
             }
+        }
+
+        Shortcut {
+            sequence: StandardKey.Cancel
+            enabled: rentalPaymentDialog.visible
+            onActivated: rentalPaymentDialog.reject()
         }
 
         Item {
