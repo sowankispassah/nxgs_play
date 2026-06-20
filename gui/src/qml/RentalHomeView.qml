@@ -81,6 +81,22 @@ Pane {
             playButton.forceActiveFocus(Qt.TabFocusReason);
     }
 
+    function openCustomerDialog(dialog) {
+        if (dialog.visible)
+            return;
+        dialog.restoreFocusItem = Window.window.activeFocusItem;
+        dialog.open();
+    }
+
+    function restoreCustomerDialogFocus(dialog) {
+        const item = dialog.restoreFocusItem;
+        dialog.restoreFocusItem = null;
+        if (item && item.visible && item.enabled)
+            item.forceActiveFocus(Qt.TabFocusReason);
+        else
+            focusDefaultItem();
+    }
+
     function controllerCardHasFocus() {
         const active = Window.window.activeFocusItem;
         for (let index = 0; index < controllerRepeater.count; ++index) {
@@ -188,7 +204,7 @@ Pane {
                 if (!enabled)
                     return;
                 if (Chiaki.rental.availabilityChecked && !Chiaki.rental.consoleAvailable) {
-                    noConsoleDialog.open();
+                    rentalHome.openCustomerDialog(noConsoleDialog);
                     Chiaki.rental.checkAvailability(Chiaki.discoveredConsoleCandidates());
                     return;
                 }
@@ -406,6 +422,7 @@ Pane {
     Dialog {
         id: durationDialog
         property bool paymentStarted: false
+        property Item restoreFocusItem
         parent: Overlay.overlay
         x: Math.round((rentalHome.width - width) / 2)
         y: Math.round((rentalHome.height - height) / 2)
@@ -417,11 +434,17 @@ Pane {
             paymentStarted = false;
             if (planRepeater.count > 0)
                 planRepeater.itemAt(0).forceActiveFocus(Qt.TabFocusReason);
+            else {
+                const cancelButton = standardButton(Dialog.Cancel);
+                if (cancelButton)
+                    cancelButton.forceActiveFocus(Qt.TabFocusReason);
+            }
         }
         onRejected: {
             if (!paymentStarted)
                 Chiaki.rental.releaseReservation();
         }
+        onClosed: rentalHome.restoreCustomerDialogFocus(durationDialog)
         Material.roundedScale: Material.MediumScale
 
             ColumnLayout {
@@ -470,6 +493,7 @@ Pane {
 
     Dialog {
         id: noConsoleDialog
+        property Item restoreFocusItem
         parent: Overlay.overlay
         x: Math.round((rentalHome.width - width) / 2)
         y: Math.round((rentalHome.height - height) / 2)
@@ -477,6 +501,12 @@ Pane {
         modal: true
         standardButtons: Dialog.Ok
         Material.roundedScale: Material.MediumScale
+        onOpened: {
+            const okButton = standardButton(Dialog.Ok);
+            if (okButton)
+                okButton.forceActiveFocus(Qt.TabFocusReason);
+        }
+        onClosed: rentalHome.restoreCustomerDialogFocus(noConsoleDialog)
 
         Label {
             text: qsTr("No console available. Please try again later.")
@@ -493,6 +523,7 @@ Pane {
 
     Dialog {
         id: serviceErrorDialog
+        property Item restoreFocusItem
         parent: Overlay.overlay
         x: Math.round((rentalHome.width - width) / 2)
         y: Math.round((rentalHome.height - height) / 2)
@@ -500,6 +531,12 @@ Pane {
         modal: true
         standardButtons: Dialog.Ok
         Material.roundedScale: Material.MediumScale
+        onOpened: {
+            const okButton = standardButton(Dialog.Ok);
+            if (okButton)
+                okButton.forceActiveFocus(Qt.TabFocusReason);
+        }
+        onClosed: rentalHome.restoreCustomerDialogFocus(serviceErrorDialog)
 
         Label {
             text: Chiaki.rental.error
@@ -519,11 +556,11 @@ Pane {
 
         function onReservationReady() {
             rentalHome.updateAvailablePlans();
-            durationDialog.open();
+            rentalHome.openCustomerDialog(durationDialog);
         }
 
         function onNoConsoleAvailable() {
-            noConsoleDialog.open();
+            rentalHome.openCustomerDialog(noConsoleDialog);
         }
 
         function onPricingChanged() {
@@ -540,12 +577,12 @@ Pane {
 
         function onErrorChanged() {
             if (Chiaki.rental.state === "error" && Chiaki.rental.error.length > 0)
-                serviceErrorDialog.open();
+                rentalHome.openCustomerDialog(serviceErrorDialog);
         }
 
         function onStateChanged() {
             if (Chiaki.rental.state === "error" && Chiaki.rental.error.length > 0)
-                serviceErrorDialog.open();
+                rentalHome.openCustomerDialog(serviceErrorDialog);
         }
     }
 

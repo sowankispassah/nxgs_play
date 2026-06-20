@@ -16,7 +16,7 @@ Dialog {
     y: Math.round((root.height - height) / 2)
     modal: true
     Material.roundedScale: Material.MediumScale
-    onOpened: label.forceActiveFocus(Qt.TabFocusReason)
+    onOpened: yesButton.forceActiveFocus(Qt.TabFocusReason)
     onAccepted: {
         newDialogOpen = true;
         restoreFocus();
@@ -58,7 +58,9 @@ Dialog {
             Layout.alignment: Qt.AlignCenter
             spacing: 20
 
-            Button {
+            C.Button {
+                id: yesButton
+                firstInFocusChain: true
                 text: qsTr("Yes")
                 Material.background: Material.accent
                 flat: true
@@ -79,7 +81,8 @@ Dialog {
                 }
             }
 
-            Button {
+            C.Button {
+                lastInFocusChain: true
                 Material.background: Material.accent
                 text: qsTr("No")
                 flat: true
@@ -100,5 +103,11 @@ Dialog {
                 }
             }
         }
+    }
+
+    Shortcut {
+        sequence: StandardKey.Cancel
+        enabled: dialog.visible
+        onActivated: dialog.reject()
     }
 }

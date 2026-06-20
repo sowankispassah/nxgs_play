@@ -5,6 +5,8 @@ import QtQuick.Controls.Material
 
 import com.nxgsstudio.nxgsgaming
 
+import "controls" as C
+
 Item {
     id: root
     focus: true
@@ -746,7 +748,7 @@ Item {
         y: Math.round((root.height - height) / 2)
         modal: true
         Material.roundedScale: Material.MediumScale
-        onOpened: infoDialogLabel.forceActiveFocus(Qt.TabFocusReason)
+        onOpened: infoDialogOkButton.forceActiveFocus(Qt.TabFocusReason)
         onClosed: {
             if (restoreFocusItem)
                 restoreFocusItem.forceActiveFocus(Qt.TabFocusReason);
@@ -756,6 +758,12 @@ Item {
         Component.onCompleted: {
             header.horizontalAlignment = Text.AlignHCenter;
             header.background = null;
+        }
+
+        Shortcut {
+            sequence: StandardKey.Cancel
+            enabled: infoDialog.visible
+            onActivated: infoDialog.close()
         }
 
         ColumnLayout {
@@ -770,7 +778,10 @@ Item {
             RowLayout {
                 Layout.alignment: Qt.AlignCenter
 
-                Button {
+                C.Button {
+                    id: infoDialogOkButton
+                    firstInFocusChain: true
+                    lastInFocusChain: true
                     text: qsTr("OK")
                     Material.background: Material.accent
                     flat: true

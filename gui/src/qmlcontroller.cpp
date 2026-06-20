@@ -6,6 +6,8 @@
 #include <QHash>
 #include <QStyleHints>
 #include <QGuiApplication>
+#include <QQuickItem>
+#include <QQuickWindow>
 #include <cstdlib>
 
 static const QVector<QPair<uint32_t, Qt::Key>> customer_navigation_key_map = {
@@ -88,6 +90,7 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
         const auto &active_key_map = streaming ? streaming_key_map : customer_navigation_key_map;
 
         if (streaming) {
+            analog_navigation_button = 0;
             if (state.left_x > 30000)
                 buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT;
             else if (state.left_x < -30000)
@@ -97,6 +100,35 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
                 buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN;
             else if (state.left_y < -30000)
                 buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_UP;
+        } else {
+            constexpr int analog_press_threshold = 20000;
+            constexpr int analog_release_threshold = 9000;
+            const int left_x = static_cast<int>(state.left_x);
+            const int left_y = static_cast<int>(state.left_y);
+            const int abs_x = std::abs(left_x);
+            const int abs_y = std::abs(left_y);
+
+            if (analog_navigation_button != 0) {
+                if (abs_x <= analog_release_threshold
+                    && abs_y <= analog_release_threshold) {
+                    analog_navigation_button = 0;
+                }
+            } else if (abs_x >= analog_press_threshold
+                       || abs_y >= analog_press_threshold) {
+                // Select only the dominant axis so diagonal stick movement
+                // cannot produce two navigation actions at once.
+                if (abs_x > abs_y) {
+                    analog_navigation_button = left_x > 0
+                        ? CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT
+                        : CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT;
+                } else {
+                    analog_navigation_button = left_y > 0
+                        ? CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN
+                        : CHIAKI_CONTROLLER_BUTTON_DPAD_UP;
+                }
+            }
+
+            buttons |= analog_navigation_button;
         }
 
         for (const auto &k : active_key_map) {
@@ -194,8 +226,10 @@ void QmlController::sendKey(Qt::Key key, Qt::KeyboardModifiers modifiers)
 
     QObject *receiver = target;
     if (target && !target->property("hasVideo").toBool()) {
-        if (QObject *focus_object = QGuiApplication::focusObject())
-            receiver = focus_object;
+        if (auto *window = qobject_cast<QQuickWindow *>(target)) {
+            if (QQuickItem *focus_item = window->activeFocusItem())
+                receiver = focus_item;
+        }
     }
     if (!receiver)
         return;

@@ -37,6 +37,7 @@ private:
     QObject *target = {};
     uint32_t escape_shortcut = 0;
     uint32_t old_buttons = 0;
+    uint32_t analog_navigation_button = 0;
     uint32_t activity_buttons = 0;
     uint8_t activity_l2 = 0;
     uint8_t activity_r2 = 0;
