@@ -12,9 +12,29 @@ Pane {
     padding: 0
     property var availablePlans: []
     property var connectedControllers: []
+    property int focusedControllerIndex: 0
 
-    StackView.onActivated: playButton.forceActiveFocus(Qt.TabFocusReason)
+    StackView.onActivated: Qt.callLater(focusDefaultItem)
     Keys.onEscapePressed: (event) => event.accepted = true
+    Keys.onUpPressed: (event) => {
+        if (Window.window.activeFocusItem === playButton)
+            event.accepted = true;
+    }
+    Keys.onDownPressed: (event) => {
+        if (Window.window.activeFocusItem === playButton
+                && rentalHome.connectedControllers.length > 0) {
+            focusControllerCard(focusedControllerIndex);
+            event.accepted = true;
+        }
+    }
+    Keys.onLeftPressed: (event) => {
+        if (Window.window.activeFocusItem === playButton)
+            event.accepted = true;
+    }
+    Keys.onRightPressed: (event) => {
+        if (Window.window.activeFocusItem === playButton)
+            event.accepted = true;
+    }
 
     Component.onCompleted: {
         updateConnectedControllers();
@@ -36,6 +56,38 @@ Pane {
                 controllers.push(controller);
         }
         connectedControllers = controllers;
+        if (focusedControllerIndex >= controllers.length)
+            focusedControllerIndex = Math.max(0, controllers.length - 1);
+        Qt.callLater(focusDefaultItem);
+    }
+
+    function controllerCard(index) {
+        return index >= 0 && index < controllerRepeater.count
+            ? controllerRepeater.itemAt(index)
+            : null;
+    }
+
+    function focusControllerCard(index) {
+        const card = controllerCard(index);
+        if (!card)
+            return false;
+        focusedControllerIndex = index;
+        card.forceActiveFocus(Qt.TabFocusReason);
+        return true;
+    }
+
+    function focusDefaultItem() {
+        if (!focusControllerCard(focusedControllerIndex))
+            playButton.forceActiveFocus(Qt.TabFocusReason);
+    }
+
+    function controllerCardHasFocus() {
+        const active = Window.window.activeFocusItem;
+        for (let index = 0; index < controllerRepeater.count; ++index) {
+            if (controllerRepeater.itemAt(index) === active)
+                return true;
+        }
+        return false;
     }
 
     function statusText() {
@@ -156,17 +208,45 @@ Pane {
                 spacing: 18
 
                 Repeater {
+                    id: controllerRepeater
                     model: rentalHome.connectedControllers
 
                     Rectangle {
+                        id: controllerCard
+                        required property int index
+                        required property var modelData
                         width: 172
                         height: 116
                         radius: 12
+                        activeFocusOnTab: true
                         color: "#0f1724"
-                        border.width: 1
-                        border.color: activityGlow.opacity > 0
+                        border.width: activeFocus ? 3 : 1
+                        border.color: activeFocus || activityGlow.opacity > 0
                             ? "#00a7ff"
                             : "#263247"
+                        scale: activeFocus ? 1.035 : 1.0
+
+                        Behavior on scale {
+                            NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+                        }
+
+                        Keys.onUpPressed: (event) => {
+                            playButton.forceActiveFocus(Qt.TabFocusReason);
+                            event.accepted = true;
+                        }
+                        Keys.onDownPressed: (event) => event.accepted = true
+                        Keys.onLeftPressed: (event) => {
+                            rentalHome.focusControllerCard(
+                                Math.max(0, controllerCard.index - 1));
+                            event.accepted = true;
+                        }
+                        Keys.onRightPressed: (event) => {
+                            rentalHome.focusControllerCard(
+                                Math.min(controllerRepeater.count - 1,
+                                         controllerCard.index + 1));
+                            event.accepted = true;
+                        }
+                        Keys.onReturnPressed: (event) => event.accepted = true
 
                         Rectangle {
                             id: activityGlow
@@ -252,6 +332,10 @@ Pane {
 
                             function onInputActivity() {
                                 controllerActivityAnimation.restart();
+                                if (rentalHome.controllerCardHasFocus()
+                                        || Window.window.activeFocusItem === rentalHome) {
+                                    rentalHome.focusControllerCard(controllerCard.index);
+                                }
                             }
                         }
                     }

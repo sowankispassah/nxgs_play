@@ -192,8 +192,16 @@ void QmlController::sendKey(Qt::Key key, Qt::KeyboardModifiers modifiers)
 
     last_key_time_by_device.insert(dedup_key, now);
 
+    QObject *receiver = target;
+    if (target && !target->property("hasVideo").toBool()) {
+        if (QObject *focus_object = QGuiApplication::focusObject())
+            receiver = focus_object;
+    }
+    if (!receiver)
+        return;
+
     QKeyEvent press(QEvent::KeyPress, key, modifiers);
-    QKeyEvent release(QEvent::KeyRelease, key, Qt::NoModifier);
-    QGuiApplication::sendEvent(target, &press);
-    QGuiApplication::sendEvent(target, &release);
+    QKeyEvent release(QEvent::KeyRelease, key, modifiers);
+    QGuiApplication::sendEvent(receiver, &press);
+    QGuiApplication::sendEvent(receiver, &release);
 }
