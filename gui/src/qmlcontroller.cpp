@@ -4,6 +4,7 @@
 #include <QKeyEvent>
 #include <QDateTime>
 #include <QHash>
+#include <QPointer>
 #include <QStyleHints>
 #include <QGuiApplication>
 #include <QQuickItem>
@@ -18,6 +19,14 @@ static const QVector<QPair<uint32_t, Qt::Key>> customer_navigation_key_map = {
     { CHIAKI_CONTROLLER_BUTTON_CROSS, Qt::Key_Return },
     { CHIAKI_CONTROLLER_BUTTON_MOON, Qt::Key_Escape },
 };
+
+static constexpr uint32_t customer_navigation_button_mask =
+    CHIAKI_CONTROLLER_BUTTON_DPAD_UP
+    | CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN
+    | CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT
+    | CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT
+    | CHIAKI_CONTROLLER_BUTTON_CROSS
+    | CHIAKI_CONTROLLER_BUTTON_MOON;
 
 static const QVector<QPair<uint32_t, Qt::Key>> streaming_key_map = {
     { CHIAKI_CONTROLLER_BUTTON_DPAD_UP, Qt::Key_Up },
@@ -65,17 +74,20 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
             || stick_moved(state.left_y, activity_left_y)
             || stick_moved(state.right_x, activity_right_x)
             || stick_moved(state.right_y, activity_right_y);
-
-        if (controller_activity) {
-            activity_buttons = state.buttons;
-            activity_l2 = state.l2_state;
-            activity_r2 = state.r2_state;
-            activity_left_x = state.left_x;
-            activity_left_y = state.left_y;
-            activity_right_x = state.right_x;
-            activity_right_y = state.right_y;
-            emit inputActivity();
-        }
+        const uint32_t newly_pressed_buttons =
+            state.buttons & ~activity_buttons;
+        const bool unused_button_activated =
+            (newly_pressed_buttons & ~customer_navigation_button_mask) != 0;
+        const bool mapped_button_activated =
+            (newly_pressed_buttons & customer_navigation_button_mask) != 0;
+        const bool trigger_or_right_stick_activated =
+            static_cast<int>(state.l2_state) - static_cast<int>(activity_l2) >= 6
+            || static_cast<int>(state.r2_state) - static_cast<int>(activity_r2) >= 6
+            || stick_moved(state.right_x, activity_right_x)
+            || stick_moved(state.right_y, activity_right_y);
+        const bool left_stick_activated =
+            stick_moved(state.left_x, activity_left_x)
+            || stick_moved(state.left_y, activity_left_y);
 
         if (std::abs(static_cast<int>(state.left_x)) < 5000)
             activity_left_x = state.left_x;
@@ -131,12 +143,16 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
             buttons |= analog_navigation_button;
         }
 
+        bool customer_action_handled = false;
+        bool customer_action_attempted = false;
         for (const auto &k : active_key_map) {
             const bool pressed = buttons & k.first;
             const bool old_pressed = old_buttons & k.first;
             if (pressed && !old_pressed) {
                 pressed_key = k.second;
-                sendKey(pressed_key);
+                customer_action_attempted = !streaming;
+                customer_action_handled = sendKey(pressed_key)
+                    || customer_action_handled;
                 repeat_running = 0;
                 if (pressed_key == Qt::Key_Up
                     || pressed_key == Qt::Key_Down
@@ -149,6 +165,25 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
             } else if (old_pressed && !pressed && pressed_key == k.second) {
                 repeat_timer->stop();
                 repeat_running = 1;
+            }
+        }
+
+        if (controller_activity) {
+            activity_buttons = state.buttons;
+            activity_l2 = state.l2_state;
+            activity_r2 = state.r2_state;
+            activity_left_x = state.left_x;
+            activity_left_y = state.left_y;
+            activity_right_x = state.right_x;
+            activity_right_y = state.right_y;
+
+            if (streaming
+                || unused_button_activated
+                || trigger_or_right_stick_activated
+                || ((mapped_button_activated || left_stick_activated)
+                    && (!customer_action_attempted
+                        || !customer_action_handled))) {
+                emit inputActivity();
             }
         }
 
@@ -208,7 +243,7 @@ QString QmlController::GetVIDPID() const
     return controller->GetVIDPIDString();
 }
 
-void QmlController::sendKey(Qt::Key key, Qt::KeyboardModifiers modifiers)
+bool QmlController::sendKey(Qt::Key key, Qt::KeyboardModifiers modifiers)
 {
     // SDL2-compat/SDL3 on macOS can expose a single physical controller as
     // two devices, creating two QmlController instances that both fire for
@@ -220,22 +255,39 @@ void QmlController::sendKey(Qt::Key key, Qt::KeyboardModifiers modifiers)
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     const qint64 last_time = last_key_time_by_device.value(dedup_key, 0);
     if ((now - last_time) < 50)
-        return;
+        return true;
 
     last_key_time_by_device.insert(dedup_key, now);
 
     QObject *receiver = target;
+    QQuickWindow *window = nullptr;
+    QPointer<QQuickItem> focus_before;
     if (target && !target->property("hasVideo").toBool()) {
-        if (auto *window = qobject_cast<QQuickWindow *>(target)) {
+        window = qobject_cast<QQuickWindow *>(target);
+        if (window) {
             if (QQuickItem *focus_item = window->activeFocusItem())
                 receiver = focus_item;
+            focus_before = window->activeFocusItem();
         }
     }
     if (!receiver)
-        return;
+        return false;
 
     QKeyEvent press(QEvent::KeyPress, key, modifiers);
     QKeyEvent release(QEvent::KeyRelease, key, modifiers);
+    press.setAccepted(false);
+    release.setAccepted(false);
     QGuiApplication::sendEvent(receiver, &press);
     QGuiApplication::sendEvent(receiver, &release);
+
+    const bool focus_changed =
+        window && window->activeFocusItem() != focus_before;
+    if (key == Qt::Key_Up
+        || key == Qt::Key_Down
+        || key == Qt::Key_Left
+        || key == Qt::Key_Right
+        || key == Qt::Key_Escape) {
+        return focus_changed;
+    }
+    return focus_changed || press.isAccepted();
 }

@@ -32,7 +32,7 @@ signals:
     void inputActivity();
 
 private:
-    void sendKey(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+    bool sendKey(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
     QObject *target = {};
     uint32_t escape_shortcut = 0;

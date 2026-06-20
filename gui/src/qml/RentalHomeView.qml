@@ -529,19 +529,45 @@ Pane {
         y: Math.round((rentalHome.height - height) / 2)
         title: qsTr("Service unavailable")
         modal: true
-        standardButtons: Dialog.Ok
+        standardButtons: Dialog.NoButton
         Material.roundedScale: Material.MediumScale
-        onOpened: {
-            const okButton = standardButton(Dialog.Ok);
-            if (okButton)
-                okButton.forceActiveFocus(Qt.TabFocusReason);
-        }
+        onOpened: serviceBackButton.forceActiveFocus(Qt.TabFocusReason)
         onClosed: rentalHome.restoreCustomerDialogFocus(serviceErrorDialog)
 
-        Label {
-            text: Chiaki.rental.error
-            wrapMode: Text.WordWrap
+        ColumnLayout {
             width: 420
+            spacing: 18
+
+            Label {
+                Layout.fillWidth: true
+                text: Chiaki.rental.error
+                wrapMode: Text.WordWrap
+            }
+
+            C.Button {
+                id: serviceBackButton
+                Layout.alignment: Qt.AlignRight
+                firstInFocusChain: true
+                lastInFocusChain: true
+                text: qsTr("Back")
+                leftPadding: 46
+                flat: true
+                Material.background: Material.accent
+                Material.roundedScale: Material.SmallScale
+                onClicked: serviceErrorDialog.close()
+
+                Image {
+                    anchors {
+                        left: parent.left
+                        verticalCenter: parent.verticalCenter
+                        leftMargin: 12
+                    }
+                    width: 24
+                    height: 24
+                    sourceSize: Qt.size(width, height)
+                    source: root.controllerButton("moon")
+                }
+            }
         }
 
         Shortcut {
