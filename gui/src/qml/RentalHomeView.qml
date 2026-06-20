@@ -494,18 +494,20 @@ Pane {
         onClosed: rentalHome.restoreCustomerDialogFocus(serviceErrorDialog)
 
         ColumnLayout {
-            width: 420
+            width: 680
+            height: 150
             spacing: 18
 
             Label {
                 Layout.fillWidth: true
+                Layout.fillHeight: true
                 text: Chiaki.rental.error
                 wrapMode: Text.WordWrap
             }
 
             C.Button {
                 id: serviceBackButton
-                Layout.alignment: Qt.AlignRight
+                Layout.alignment: Qt.AlignRight | Qt.AlignBottom
                 firstInFocusChain: true
                 lastInFocusChain: true
                 text: qsTr("Back")
