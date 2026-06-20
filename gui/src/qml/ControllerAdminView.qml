@@ -106,23 +106,15 @@ Pane {
 
             Label {
                 Layout.alignment: Qt.AlignHCenter
-                text: qsTr("Management Access")
+                text: qsTr("Enter Code")
                 font.bold: true
                 font.pixelSize: 32
-            }
-
-            Label {
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
-                text: qsTr("Enter the access code to continue.")
-                opacity: 0.72
-                wrapMode: Text.WordWrap
             }
 
             TextField {
                 id: pinField
                 Layout.fillWidth: true
-                placeholderText: qsTr("Access code")
+                placeholderText: qsTr("Code")
                 echoMode: TextInput.Password
                 inputMethodHints: Qt.ImhDigitsOnly
                 enabled: !Chiaki.rental.adminBusy

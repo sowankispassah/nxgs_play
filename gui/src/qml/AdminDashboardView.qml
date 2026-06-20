@@ -305,18 +305,10 @@ Pane {
 
         Label {
             Layout.alignment: Qt.AlignHCenter
-            text: qsTr("Management Access")
+            text: qsTr("Enter Code")
             color: "#ffffff"
             font.bold: true
             font.pixelSize: 30
-        }
-
-        Label {
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            text: qsTr("Enter the access code to continue.")
-            color: "#8f9bb3"
-            wrapMode: Text.WordWrap
         }
 
         AdminCard {
@@ -324,7 +316,7 @@ Pane {
 
             Label {
                 Layout.fillWidth: true
-                text: qsTr("Access Code")
+                text: qsTr("Code")
                 color: "#cbd5e1"
                 font.bold: true
                 font.pixelSize: 14
@@ -334,7 +326,7 @@ Pane {
                 id: pinField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
-                placeholderText: qsTr("Enter code")
+                placeholderText: qsTr("Code")
                 echoMode: TextInput.Password
                 inputMethodHints: Qt.ImhDigitsOnly
                 enabled: !Chiaki.rental.adminBusy

@@ -335,7 +335,7 @@ Item {
         x: Math.round((root.width - width) / 2)
         y: Math.round((root.height - height) / 2)
         width: Math.min(root.width - 80, 560)
-        title: root.kioskControlsAuthorized ? qsTr("System Controls") : qsTr("Authorized Access")
+        title: root.kioskControlsAuthorized ? qsTr("Options") : qsTr("Enter Code")
         modal: true
         closePolicy: Popup.NoAutoClose
         Material.roundedScale: Material.MediumScale
@@ -360,21 +360,13 @@ Item {
             width: kioskUnlockDialog.width - 48
             spacing: 14
 
-            Label {
-                Layout.fillWidth: true
-                visible: !root.kioskControlsAuthorized
-                text: qsTr("Enter the management access code to unlock system controls.")
-                color: "#cbd5e1"
-                wrapMode: Text.WordWrap
-            }
-
             TextField {
                 id: kioskPinField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 48
                 visible: !root.kioskControlsAuthorized
                 enabled: !Chiaki.rental.adminBusy
-                placeholderText: qsTr("Access code")
+                placeholderText: qsTr("Code")
                 echoMode: TextInput.Password
                 inputMethodHints: Qt.ImhDigitsOnly
                 onAccepted: kioskVerifyButton.clicked()
@@ -386,7 +378,7 @@ Item {
                     && root.kioskUnlockAttempted
                     && !Chiaki.rental.adminBusy
                     && Chiaki.rental.adminError.length > 0
-                text: qsTr("Incorrect code. NXGS remains locked.")
+                text: qsTr("Incorrect code")
                 color: "#fb7185"
                 wrapMode: Text.WordWrap
             }
@@ -407,7 +399,7 @@ Item {
                     id: kioskVerifyButton
                     Layout.fillWidth: true
                     enabled: !Chiaki.rental.adminBusy && kioskPinField.text.length > 0
-                    text: Chiaki.rental.adminBusy ? qsTr("Checking...") : qsTr("Unlock")
+                    text: Chiaki.rental.adminBusy ? qsTr("Checking...") : qsTr("Continue")
                     Material.background: "#00a7ff"
                     onClicked: {
                         if (!enabled)
